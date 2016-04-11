@@ -16,8 +16,9 @@ import hashlib
 import random
 import requests
 from argparse import ArgumentParser
+from pprint import pprint
 
-DEBUG = 1
+DEBUG = True
 
 PY3 = sys.version_info >= (3, 0)
 
@@ -74,14 +75,20 @@ class Dictor(object):
         if r.status_code == requests.codes.ok:
             try:
                 self.trans_data = r.json()
-                if self.debug: print(self.trans_data)
+                if self.debug: pprint(self.trans_data)
             except Exception as e:
                 print("Error: ", e)
         else:
             print("Request was aborted, status code is", r.status_code)
 
     def print_trans_result(self):
-        self.__youdao_trans_result()
+        if self.select_api == SELECT_BAIDU:
+            self.__baidu_trans_result()
+        elif self.select_api == SELECT_ICIBA:
+            pass
+        else:
+            self.__youdao_trans_result()
+        
         if not self.has_result:
             print(self.__colorize(' -- No result for this query.', 'red'))
 
@@ -154,6 +161,14 @@ class Dictor(object):
                     Popen('echo ' + query + ' | festival --tts', shell=True)
                 else:
                     print(_c(' -- Please Install festival.', 'red'))
+
+    def __baidu_trans_result(self):
+        if "trans_result" in self.trans_data:
+            self.has_result = True
+            trans_result = self.trans_data["trans_result"][0]
+            print(self.__colorize(trans_result["src"], 'bold'))
+            print(self.__colorize("翻译结果:", 'cyan'))
+            print(self.__colorize("  * {0}".format(trans_result["dst"]), 'magenta'))
 
 
     def __store_api_info(self, query):
@@ -295,7 +310,7 @@ if __name__ == "__main__":
         select_api = SELECT_YOUDAO
 
     dictor = Dictor(select_api)
-    dictor.set_debuglevel(True)
+    dictor.set_debuglevel(DEBUG)
 
 
     if options.words:
