@@ -41,6 +41,9 @@ BAIDU_SECRET_KEY = "qwJBEKy7dcychROiwMMk"
 SELECT_ICIBA = 2
 ICIBA_KEY = "F45625719E3AC2B588DE9B3807EDD1FF"
 
+# iciba daysay api
+DSAPI = "http://open.iciba.com/dsapi"
+
 class Dictor(object):
 
     def __init__(self, select_api):
@@ -88,7 +91,7 @@ class Dictor(object):
             pass
         else:
             self.__youdao_trans_result()
-        
+
         if not self.has_result:
             print(self.__colorize(' -- No result for this query.', 'red'))
 
@@ -256,24 +259,65 @@ class Dictor(object):
         else:
             return s
 
-# Script starts from here
+class Daysay(object):
+    def __init__(self):
+        self.ds_data = {}
+        self.debug = False
 
+        self.__get_ds_data()
+
+    def set_debuglevel(self, level):
+        self.debug = level
+
+    def __get_ds_data(self):
+        url = DSAPI
+        try:
+            r = requests.get(url, timeout=10)
+            if self.debug: print("Request url: ", r.url)
+        except requests.exceptions.Timeout:
+            print("Connection timeout!")
+        except requests.exceptions.ConnectionError:
+            print("Connection error!")
+        except requests.exceptions.HTTPError:
+            print("Invalid HTTP response!")
+
+        if r.status_code == requests.codes.ok:
+            try:
+                self.ds_data = r.json()
+                if self.debug: pprint(self.ds_data)
+            except Exception as e:
+                print("Error: ", e)
+        else:
+            print("Request was aborted, status code is", r.status_code)
+
+    def print_daysay(self):
+        ds_content = self.ds_data.get("content")
+        ds_note = self.ds_data.get("note")
+
+        if ds_content and ds_note:
+            str_out = "\n" + ds_content + "\n" + ds_note + "\n"
+            print(str_out)
+
+    def feh_img(self):
+        pass
+
+
+# Script starts from here
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Online dictionary based on the console.")
     parser.add_argument('-b', '--baidu',
                         action="store_true",
                         default=False,
-                        help="Select baidu api")
+                        help="Select baidu api.")
     parser.add_argument('-i', '--iciba',
                         action="store_true",
                         default=False,
-                        help="Select iciba api")
-    parser.add_argument('-f', '--full',
+                        help="Select iciba api.")
+    parser.add_argument('-d', '--daysay',
                         action="store_true",
                         default=False,
-                        help="print full web reference, only the first 3 "
-                             "results will be printed without this flag.")
+                        help="Print daily sentence of iciba.")
     parser.add_argument('-s', '--simple',
                         action="store_true",
                         default=False,
@@ -312,8 +356,11 @@ if __name__ == "__main__":
     dictor = Dictor(select_api)
     dictor.set_debuglevel(DEBUG)
 
-
-    if options.words:
+    if options.daysay:
+        ds = Daysay()
+        ds.set_debuglevel(DEBUG)
+        ds.print_daysay()
+    elif options.words:
         for word in options.words:
             word = word if PY3 else word.decode("utf-8")
             dictor.set_trans_data(word)
