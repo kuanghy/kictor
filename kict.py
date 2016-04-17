@@ -14,6 +14,7 @@ from __future__ import print_function
 import sys
 import hashlib
 import random
+import re
 import requests
 from argparse import ArgumentParser
 from pprint import pprint
@@ -43,6 +44,45 @@ ICIBA_KEY = "F45625719E3AC2B588DE9B3807EDD1FF"
 
 # iciba daysay api
 DSAPI = "http://open.iciba.com/dsapi"
+
+class Colorizing(object):
+    colors = {
+        'none': "",
+        'default': "\033[0m",
+        'bold': "\033[1m",
+        'underline': "\033[4m",
+        'blink': "\033[5m",
+        'reverse': "\033[7m",
+        'concealed': "\033[8m",
+
+        'black': "\033[30m",
+        'red': "\033[31m",
+        'green': "\033[32m",
+        'yellow': "\033[33m",
+        'blue': "\033[34m",
+        'magenta': "\033[35m",
+        'cyan': "\033[36m",
+        'white': "\033[37m",
+
+        'on_black': "\033[40m",
+        'on_red': "\033[41m",
+        'on_green': "\033[42m",
+        'on_yellow': "\033[43m",
+        'on_blue': "\033[44m",
+        'on_magenta': "\033[45m",
+        'on_cyan': "\033[46m",
+        'on_white': "\033[47m",
+
+        'beep': "\007",
+    }
+
+    @classmethod
+    def colorize(cls, s, color=None):
+        if color in cls.colors:
+            return "{0}{1}{2}".format(
+                cls.colors[color], s, cls.colors['default'])
+        else:
+            return s
 
 class Dictor(object):
 
@@ -84,24 +124,24 @@ class Dictor(object):
         else:
             print("Request was aborted, status code is", r.status_code)
 
-    def print_trans_result(self):
+    def print_trans_result(self, refer=False, read=False):
         if self.select_api == SELECT_BAIDU:
-            self.__baidu_trans_result()
+            self.__baidu_trans_result(refer, read)
         elif self.select_api == SELECT_ICIBA:
             pass
         else:
             self.__youdao_trans_result()
 
         if not self.has_result:
-            print(self.__colorize(' -- No result for this query.', 'red'))
+            print(Colorizing.colorize(' -- No result for this query.', 'red'))
 
         print()
 
     def set_debuglevel(self, level):
         self.debug = level
 
-    def __youdao_trans_result(self):
-        _c = self.__colorize
+    def __youdao_trans_result(self, refer=False, read=False):
+        _c = Colorizing.colorize
         _d = self.trans_data
 
         print(_c(_d["query"], 'bold'), end='')
@@ -131,7 +171,7 @@ class Dictor(object):
                 print()
 
             if 'explains' in _b:
-                print(_c('  词典解释:', 'cyan'))
+                print(_c('  词典释义:', 'cyan'))
                 print(*map("     * {0}".format, _b['explains']), sep='\n')
             else:
                 print()
@@ -146,8 +186,6 @@ class Dictor(object):
         if 'web' in _d:
             self.has_result = True
             print(_c('\n  网络释义:', 'cyan'))
-
-            web = _d['web'] if options.full else _d['web'][:3]
             print(*[
                 '     * {0}\n       {1}'.format(
                     _c(ref['key'], 'yellow'),
@@ -166,12 +204,36 @@ class Dictor(object):
                     print(_c(' -- Please Install festival.', 'red'))
 
     def __baidu_trans_result(self):
+        _c = Colorizing.colorize
         if "trans_result" in self.trans_data:
             self.has_result = True
             trans_result = self.trans_data["trans_result"][0]
-            print(self.__colorize(trans_result["src"], 'bold'))
-            print(self.__colorize("翻译结果:", 'cyan'))
-            print(self.__colorize("  * {0}".format(trans_result["dst"]), 'magenta'))
+            print(_c(trans_result["src"], 'bold'))
+            print(_c("翻译结果:", 'cyan'))
+            print(_c("  * {0}".format(trans_result["dst"]), 'magenta'))
+
+    def __iciba_trans_result(self):
+        _c = Colorizing.colorize
+        _d = self.trans_data
+
+         print(_c(_d["word_name"], 'bold'), end='')
+
+        if "exchange" in _d:
+            tense = {}
+            for t, w in _d["exchanges"].iteritems():
+                if w:
+                    tense[t.split('_')[1]] = ", ".join(w)
+
+            symbols = _d["symbols"][0]
+            if symbols.get("ph_en") and symbols.get("ph_em"):
+                    print(" UK: [{0}]".format(_c(symbols["ph_en"], 'yellow')), end=',')  # 英式发音
+                    print(" US: [{0}]".format(_c(symbols["ph_em"], 'yellow')))  # 美式发音
+            elif symbols.get('ph_other'):
+                print(" [{0}]".format(_c(symbols['ph_other'], 'yellow')))
+            else:
+                print()
+            for item, dd in _d["symbols"][0].iteritems():
+
 
 
     def __store_api_info(self, query):
@@ -214,50 +276,38 @@ class Dictor(object):
 
         self.__api_info["iciba"] = {"url": url, "payload": payload}
 
+    def online_resources(query):
+        common = [
+            "http://www.iciba.com/{0}",
+            "http://dict.youdao.com/w/{0}/#keyfrom=dict.index",
+            "http://dict.cn/{0}"
+        ]
+
+        english = re.compile('^[a-z]+$', re.IGNORECASE)
+        chinese = re.compile('^[\u4e00-\u9fff]+$', re.UNICODE)
+
+        # Professional dictionary
+        prof = [
+            (english, 'http://www.ldoceonline.com/search/?q={0}'),
+            (english, 'http://dictionary.reference.com/browse/{0}'),
+            (english, 'http://www.urbandictionary.com/define.php?term={0}'),
+            (chinese, 'http://www.zdic.net/sousuo/?q={0}')
+        ]
+
+        common = [url.format((query.encode('utf-8'))) for url in common]
+        perf = [url.format((query.encode('utf-8'))) for lang, url in prof \
+            if lang.match(query) is not None]
+
+        return common + perf
+
     def __is_chinese(self, s):
-        """如果字符串中含有一个汉子，则认为该字符串为中文"""
+        """判断是否为中文.
+        如果字符串中含有一个汉子，则认为该字符串为中文"""
         for uchar in s:
             if uchar >= u'\u4e00' and uchar<=u'\u9fa5':
                 return True
 
         return False
-
-    def __colorize(self, s, color=None):
-        colors = {
-            'none': "",
-            'default': "\033[0m",
-            'bold': "\033[1m",
-            'underline': "\033[4m",
-            'blink': "\033[5m",
-            'reverse': "\033[7m",
-            'concealed': "\033[8m",
-
-            'black': "\033[30m",
-            'red': "\033[31m",
-            'green': "\033[32m",
-            'yellow': "\033[33m",
-            'blue': "\033[34m",
-            'magenta': "\033[35m",
-            'cyan': "\033[36m",
-            'white': "\033[37m",
-
-            'on_black': "\033[40m",
-            'on_red': "\033[41m",
-            'on_green': "\033[42m",
-            'on_yellow': "\033[43m",
-            'on_blue': "\033[44m",
-            'on_magenta': "\033[45m",
-            'on_cyan': "\033[46m",
-            'on_white': "\033[47m",
-
-            'beep': "\007",
-        }
-
-        if color in colors:
-            return "{0}{1}{2}".format(
-                colors[color], s, colors['default'])
-        else:
-            return s
 
 class Daysay(object):
     def __init__(self):
@@ -318,31 +368,25 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help="Print daily sentence of iciba.")
-    parser.add_argument('-s', '--simple',
+    parser.add_argument('-f', '--refer',
                         action="store_true",
                         default=False,
-                        help="only show explainations. "
-                             "argument \"-f\" will not take effect.")
-    parser.add_argument('-S', '--speech',
+                        help="Print online web resources.")
+    parser.add_argument('-s', '--speech',
                         action="store_true",
                         default=False,
-                        help="print URL to speech audio.")
+                        help="Print URL to speech audio.")
     parser.add_argument('-r', '--read',
                         action="store_true",
                         default=False,
-                        help="read out the word, use festival on Linux.")
-    parser.add_argument('-x', '--selection',
+                        help="Read out the word, use festival on Linux.")
+    parser.add_argument('-x', '--selection',  # 划词
                         action="store_true",
                         default=False,
-                        help="show explaination of current selection.")
-    parser.add_argument('--color',
-                        choices=['always', 'auto', 'never'],
-                        default='auto',
-                        help="colorize the output. "
-                             "Default to 'auto' or can be 'never' or 'always'.")
+                        help="Show explaination of current selection.")
     parser.add_argument('words',
                         nargs='*',
-                        help="words to lookup, or quoted sentences to translate.")
+                        help="Words to lookup, or quoted sentences to translate.")
 
     options = parser.parse_args()
 
