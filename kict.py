@@ -11,12 +11,11 @@
 from __future__ import unicode_literals
 from __future__ import print_function
 
-import sys
-import hashlib
-import random
-import re
+import sys, platform, hashlib, random, re
 import requests
 from argparse import ArgumentParser
+from subprocess import Popen
+from distutils import spawn
 from pprint import pprint
 
 DEBUG = True
@@ -88,12 +87,15 @@ class Dictor(object):
 
     def __init__(self, select_api):
         self.select_api = select_api
+        self.query = ""
         self.trans_data = {}
         self.has_result = False
         self.debug = False
         self.__api_info = {}
 
+    # FIXME: add cache and retry
     def set_trans_data(self, query):
+        self.query = query
         self.__store_api_info(query)
         url = self.__api_info["youdao"]["url"]
         payload = self.__api_info["youdao"]["payload"]
@@ -105,6 +107,7 @@ class Dictor(object):
                 url = self.__api_info["iciba"]["url"]
                 payload = self.__api_info["iciba"]["payload"]
 
+        # XXX
         try:
             r = requests.get(url, params=payload, timeout=10)
             if self.debug: print("Request url: ", r.url)
@@ -122,119 +125,51 @@ class Dictor(object):
             except Exception as e:
                 print("Error: ", e)
         else:
-            print("Request was aborted, status code is", r.status_code)
+            print("Request was aborted, status code is", r.status_code)  # end XXX
 
-    def print_trans_result(self, refer=False, read=False):
+    def print_trans_result(self, speech=False, resource=False, read=False):
         if self.select_api == SELECT_BAIDU:
-            self.__baidu_trans_result(refer, read)
+            self.__baidu_trans_result()
         elif self.select_api == SELECT_ICIBA:
-            pass
+            self.__iciba_trans_result(speech)
         else:
-            self.__youdao_trans_result()
+            self.__youdao_trans_result(speech)
 
         if not self.has_result:
             print(Colorizing.colorize(' -- No result for this query.', 'red'))
+        elif resource:
+            self.show_resources()
+        elif read:
+            self.read_word()
 
         print()
 
     def set_debuglevel(self, level):
         self.debug = level
 
-    def __youdao_trans_result(self, refer=False, read=False):
+    def show_resources(self):
+        """Online resources"""
         _c = Colorizing.colorize
-        _d = self.trans_data
-
-        print(_c(_d["query"], 'bold'), end='')
-
-        if 'basic' in _d:
-            self.has_result = True
-            _b = _d['basic']
-
-            try:
-                if 'uk-phonetic' in _b and 'us-phonetic' in _b:
-                    print(" UK: [{0}]".format(_c(_b['uk-phonetic'], 'yellow')), end=',')
-                    print(" US: [{0}]".format(_c(_b['us-phonetic'], 'yellow')))
-                elif 'phonetic' in _b:
-                    print(" [{0}]".format(_c(_b['phonetic'], 'yellow')))
-                else:
-                    print()
-            except UnicodeEncodeError:
-                print(" [ ---- ] ")
-
-            if 'speech' in _b:
-                print(_c('  Text to Speech:', 'cyan'))
-                if 'us-speech' in _b and 'uk-speech' in _b:
-                    print("     * UK:", _b['uk-speech'])
-                    print("     * US:", _b['us-speech'])
-                elif 'speech' in _b:
-                    print("     *", _b['speech'])
-                print()
-
-            if 'explains' in _b:
-                print(_c('  词典释义:', 'cyan'))
-                print(*map("     * {0}".format, _b['explains']), sep='\n')
-            else:
-                print()
-        elif 'translation' in _d:
-            self.has_result = True
-            print(_c('\n  翻译结果:', 'cyan'))
-            print(*map("     * {0}".format, _d['translation']), sep='\n')
+        ol_res = self.__online_resources(self.query)
+        if len(ol_res) > 0:
+            print(_c('\n  在线资源:', 'cyan'))
+            print(*map(('     * ' + _c('{0}', 'underline')).format, ol_res), sep='\n')
         else:
-            print()
+            print(_c(' -- No online resources for this query.', 'red'))
 
-        # Web reference
-        if 'web' in _d:
-            self.has_result = True
-            print(_c('\n  网络释义:', 'cyan'))
-            print(*[
-                '     * {0}\n       {1}'.format(
-                    _c(ref['key'], 'yellow'),
-                    '; '.join(map(_c('{0}', 'magenta').format, ref['value']))
-                ) for ref in web], sep='\n')
-
-        # read out the word
-        if options.read:
-            sys_name = platform.system()
-            if 'Darwin' == sys_name:
-                call(['say', query])
-            elif 'Linux' == sys_name:
-                if spawn.find_executable('festival'):
-                    Popen('echo ' + query + ' | festival --tts', shell=True)
-                else:
-                    print(_c(' -- Please Install festival.', 'red'))
-
-    def __baidu_trans_result(self):
+    def read_word(self):
+        """read out the word"""
         _c = Colorizing.colorize
-        if "trans_result" in self.trans_data:
-            self.has_result = True
-            trans_result = self.trans_data["trans_result"][0]
-            print(_c(trans_result["src"], 'bold'))
-            print(_c("翻译结果:", 'cyan'))
-            print(_c("  * {0}".format(trans_result["dst"]), 'magenta'))
-
-    def __iciba_trans_result(self):
-        _c = Colorizing.colorize
-        _d = self.trans_data
-
-         print(_c(_d["word_name"], 'bold'), end='')
-
-        if "exchange" in _d:
-            tense = {}
-            for t, w in _d["exchanges"].iteritems():
-                if w:
-                    tense[t.split('_')[1]] = ", ".join(w)
-
-            symbols = _d["symbols"][0]
-            if symbols.get("ph_en") and symbols.get("ph_em"):
-                    print(" UK: [{0}]".format(_c(symbols["ph_en"], 'yellow')), end=',')  # 英式发音
-                    print(" US: [{0}]".format(_c(symbols["ph_em"], 'yellow')))  # 美式发音
-            elif symbols.get('ph_other'):
-                print(" [{0}]".format(_c(symbols['ph_other'], 'yellow')))
+        sys_name = platform.system()
+        if 'Darwin' == sys_name:
+            call(['say', self.query])
+        elif 'Linux' == sys_name:
+            if spawn.find_executable('festival'):
+                Popen('echo ' + self.query + ' | festival --tts', shell=True)
             else:
-                print()
-            for item, dd in _d["symbols"][0].iteritems():
-
-
+                print(_c(' -- Please Install festival.', 'red'))
+        else:
+            print(_c(' -- Failed to read out the word.', 'red'))
 
     def __store_api_info(self, query):
         url = "http://fanyi.youdao.com/openapi.do"
@@ -243,7 +178,7 @@ class Dictor(object):
             "key":YOUDAO_API_KEY,
             "type": "data",
             "doctype": "json",
-            "version": "1.1",
+            "version": "1.2",
             "q": query
         }
 
@@ -276,11 +211,130 @@ class Dictor(object):
 
         self.__api_info["iciba"] = {"url": url, "payload": payload}
 
-    def online_resources(query):
+    def __youdao_trans_result(self, speech=False, resource=False, read=False):
+        _c = Colorizing.colorize
+        _d = self.trans_data
+
+        print(_c(_d["query"], 'bold'), end='')
+
+        if 'basic' in _d:
+            self.has_result = True
+            _b = _d['basic']
+
+            try:
+                if 'uk-phonetic' in _b and 'us-phonetic' in _b:
+                    print(" UK: [{0}]".format(_c(_b['uk-phonetic'], 'yellow')), end=',')
+                    print(" US: [{0}]".format(_c(_b['us-phonetic'], 'yellow')))
+                elif 'phonetic' in _b:
+                    print(" [{0}]".format(_c(_b['phonetic'], 'yellow')))
+                else:
+                    print()
+            except UnicodeEncodeError:
+                print(" [ ---- ] ")
+
+            if speech and 'speech' in _b:
+                print(_c('  发音参考:', 'cyan'))
+                if 'us-speech' in _b and 'uk-speech' in _b:
+                    print("     * UK:", _b['uk-speech'])
+                    print("     * US:", _b['us-speech'])
+                elif 'speech' in _b:
+                    print("     *", _b['speech'])
+                print()
+
+            if 'explains' in _b:
+                print(_c('  词典释义:', 'cyan'))
+                print(*map("     * {0}".format, _b['explains']), sep='\n')
+            else:
+                print()
+        elif 'translation' in _d:
+            self.has_result = True
+            print(_c('\n  翻译结果:', 'cyan'))
+            print(*map("     * {0}".format, _d['translation']), sep='\n')
+        else:
+            print()
+
+        # Web reference
+        if 'web' in _d:
+            self.has_result = True
+            print(_c('\n  网络释义:', 'cyan'))
+            print(*[
+                '     * {0}\n       {1}'.format(
+                    _c(ref['key'], 'yellow'),
+                    '; '.join(map(_c('{0}', 'magenta').format, ref['value']))
+                ) for ref in _d['web']], sep='\n')
+
+    def __baidu_trans_result(self):
+        _c = Colorizing.colorize
+        if "trans_result" in self.trans_data:
+            self.has_result = True
+            trans_result = self.trans_data["trans_result"][0]
+            print(_c(trans_result["src"], 'bold'))
+            print(_c("翻译结果:", 'cyan'))
+            print(_c("  * {0}".format(trans_result["dst"]), 'magenta'))
+
+    def __iciba_trans_result(self, speech=False, resource=False, read=False):
+        _c = Colorizing.colorize
+        _d = self.trans_data
+
+        print(_c(_d["word_name"], 'bold'), end='')
+
+        symbols = _d["symbols"][0]
+        if self.__is_chinese(_d["word_name"]) and "parts" in symbols:
+            print("XXX")
+        elif "parts" in symbols:
+            self.has_result = True
+
+            if symbols.get("ph_en") and symbols.get("ph_am"):
+                print(" UK: [{0}]".format(_c(symbols["ph_en"], 'yellow')), end=',')  # 英式发音
+                print(" US: [{0}]".format(_c(symbols["ph_am"], 'yellow')))  # 美式发音
+            elif symbols.get('ph_other'):
+                print(" [{0}]".format(_c(symbols['ph_other'], 'yellow')))
+            else:
+                print()
+
+            if speech:
+                print(_c('  发音参考:', 'cyan'))
+                speech_count = 0
+                if symbols.get('ph_en_mp3'):
+                    print("     * UK:", symbols["ph_en_mp3"])
+                    speech_count += 1
+                if symbols.get('ph_am_mp3'):
+                    print("     * US:", symbols["ph_am_mp3"])
+                    speech_count += 1
+                if symbols.get('ph_tts_mp3'):
+                    print("     * TTS:", symbols['ph_tts_mp3'])
+                    speech_count += 1
+
+                if speech_count == 0:
+                    print(_c(' -- No speech for this query.', 'red'))
+
+                print()
+
+            parts = symbols["parts"]
+            print(_c('  词典释义:', 'cyan'))
+            print(*[
+                '     * {0}\n       {1}'.format(
+                    _c(part['part'], 'yellow'),
+                    '; '.join(map('{0}'.format, part['means']))
+                ) for part in symbols["parts"]], sep='\n')
+
+            if "exchange" in _d:
+                print(_c('\n  单词时态:', 'cyan'))
+                exchange_count = 0
+                for t, w in _d["exchange"].iteritems():
+                    if w:
+                        print("     * {0}: {1}".format(_c(t.split('_')[1], "green"), ", ".join(w)))
+                        exchange_count += 1
+                if exchange_count == 0:
+                    print("_c(' -- No tense for this query.', 'red')")
+        else:
+            print()
+
+    def __online_resources(self, query):
         common = [
+            "http://dict.cn/{0}",
             "http://www.iciba.com/{0}",
-            "http://dict.youdao.com/w/{0}/#keyfrom=dict.index",
-            "http://dict.cn/{0}"
+            "http://dict.youdao.com/w/{0}/#keyfrom=dict.index"
         ]
 
         english = re.compile('^[a-z]+$', re.IGNORECASE)
@@ -355,28 +409,28 @@ class Daysay(object):
 # Script starts from here
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="Online dictionary based on the console.")
-    parser.add_argument('-b', '--baidu',
+    parser = ArgumentParser(description="Kictor, online dictionary based on the console.")
+    parser.add_argument('-b', '--baidu',  # 百度翻译
                         action="store_true",
                         default=False,
                         help="Select baidu api.")
-    parser.add_argument('-i', '--iciba',
+    parser.add_argument('-i', '--iciba',  # 爱词霸
                         action="store_true",
                         default=False,
                         help="Select iciba api.")
-    parser.add_argument('-d', '--daysay',
+    parser.add_argument('-d', '--daysay',  # 每日一句
                         action="store_true",
                         default=False,
                         help="Print daily sentence of iciba.")
-    parser.add_argument('-f', '--refer',
+    parser.add_argument('-o', '--resources',  # 在线资源
                         action="store_true",
                         default=False,
                         help="Print online web resources.")
-    parser.add_argument('-s', '--speech',
+    parser.add_argument('-s', '--speech',  # 发音文件
                         action="store_true",
                         default=False,
                         help="Print URL to speech audio.")
-    parser.add_argument('-r', '--read',
+    parser.add_argument('-r', '--read',  # 阅读单词
                         action="store_true",
                         default=False,
                         help="Read out the word, use festival on Linux.")
@@ -408,4 +462,4 @@ if __name__ == "__main__":
         for word in options.words:
             word = word if PY3 else word.decode("utf-8")
             dictor.set_trans_data(word)
-            dictor.print_trans_result()
+            dictor.print_trans_result(options.speech, options.resources, options.read)
