@@ -215,7 +215,7 @@ class Dictor(object):
         _c = Colorizing.colorize
         _d = self.trans_data
 
-        print(_c(_d["query"], 'bold'), end='')
+        print(_c(self.query, 'bold'), end='')
 
         if 'basic' in _d:
             self.has_result = True
@@ -276,11 +276,29 @@ class Dictor(object):
         _c = Colorizing.colorize
         _d = self.trans_data
 
-        print(_c(_d["word_name"], 'bold'), end='')
+        print(_c(self.query, 'bold'), end='')
 
         symbols = _d["symbols"][0]
-        if self.__is_chinese(_d["word_name"]) and "parts" in symbols:
-            print("XXX")
+        if self.__is_chinese(self.query) and "parts" in symbols:
+            self.has_result = True
+
+            if symbols.get("word_symbol"):
+                print(" [{0}]".format(_c(symbols["word_symbol"], "yellow")))
+            else:
+                print()
+
+            if speech:
+                print(_c('  读音参考:', 'cyan'))
+                if symbols.get("symbol_mp3"):
+                    print("     * ", symbols["symbol_mp3"])
+                else:
+                    print(_c(' -- No speech for this query.', 'red'))
+                print()
+
+            parts = symbols["parts"][0]
+            print(_c('  词典释义:', 'cyan'))
+            means = [mean.get("word_mean") for mean in parts["means"] if mean.get("word_mean")]
+            print(*map("    * {0}".format, means), sep='\n')
         elif "parts" in symbols:
             self.has_result = True
 
