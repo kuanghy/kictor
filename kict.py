@@ -5,7 +5,7 @@
 #     Filename @  kict.py
 #       Author @  Huoty
 #  Create date @  2016-04-10 09:18:02
-#  Description @
+#  Description @  The console of the dictionary
 # *************************************************************
 
 from __future__ import print_function
@@ -225,32 +225,32 @@ class Dictor(object):
                 print(" [ ---- ] ")
 
             if speech and 'speech' in _b:
-                print(_c('发音参考:', 'cyan'))
+                print(_c('  发音参考:', 'cyan'))
                 if 'us-speech' in _b and 'uk-speech' in _b:
-                    print("   * UK:", _b['uk-speech'])
-                    print("   * US:", _b['us-speech'])
+                    print("     * UK:", _b['uk-speech'])
+                    print("     * US:", _b['us-speech'])
                 elif 'speech' in _b:
                     print("     *", _b['speech'])
                 print()
 
             if 'explains' in _b:
-                print(_c('词典释义:', 'cyan'))
-                print(*map("   * {0}".format, _b['explains']), sep='\n')
+                print(_c('  词典释义:', 'cyan'))
+                print(*map("     * {0}".format, _b['explains']), sep='\n')
             else:
                 print()
         elif 'translation' in _d:
             self.has_result = True
-            print(_c('\n翻译结果:', 'cyan'))
-            print(*map("   * {0}".format, _d['translation']), sep='\n')
+            print(_c('\n  翻译结果:', 'cyan'))
+            print(*map("     * {0}".format, _d['translation']), sep='\n')
         else:
             print()
 
         # Web reference
         if 'web' in _d:
             self.has_result = True
-            print(_c('\n网络释义:', 'cyan'))
+            print(_c('\n  网络释义:', 'cyan'))
             print(*[
-                '   * {0}\n       {1}'.format(
+                '     * {0}\n       {1}'.format(
                     _c(ref['key'], 'yellow'),
                     '; '.join(map(_c('{0}', 'magenta').format, ref['value']))
                 ) for ref in _d['web']], sep='\n')
@@ -260,8 +260,8 @@ class Dictor(object):
             self.has_result = True
             trans_result = self.trans_data["trans_result"][0]
             print(_c(trans_result["src"], 'bold'))
-            print(_c("翻译结果:", 'cyan'))
-            print(_c("   * {0}".format(trans_result["dst"]), 'magenta'))
+            print(_c("  翻译结果:", 'cyan'))
+            print(_c("     * {0}".format(trans_result["dst"]), 'magenta'))
         pass
 
     def __iciba_trans_result(self, speech=False, resource=False, read=False):
@@ -302,16 +302,16 @@ class Dictor(object):
                 print()
 
             if speech:
-                print(_c('发音参考:', 'cyan'))
+                print(_c('  发音参考:', 'cyan'))
                 speech_count = 0
                 if symbols.get('ph_en_mp3'):
-                    print("   * UK:", symbols["ph_en_mp3"])
+                    print("     * UK:", symbols["ph_en_mp3"])
                     speech_count += 1
                 if symbols.get('ph_am_mp3'):
-                    print("   * US:", symbols["ph_am_mp3"])
+                    print("     * US:", symbols["ph_am_mp3"])
                     speech_count += 1
                 if symbols.get('ph_tts_mp3'):
-                    print("   * TTS:", symbols['ph_tts_mp3'])
+                    print("     * TTS:", symbols['ph_tts_mp3'])
                     speech_count += 1
 
                 if speech_count == 0:
@@ -320,7 +320,7 @@ class Dictor(object):
                 print()
 
             parts = symbols["parts"]
-            print(_c('词典释义:', 'cyan'))
+            print(_c(' 词典释义:', 'cyan'))
             print(*[
                 '   * {0}\n       {1}'.format(
                     _c(part['part'], 'yellow'),
@@ -373,6 +373,7 @@ class Dictor(object):
 
         return False
 
+
 class Daysay(object):
     def __init__(self):
         self.ds_data = {}
@@ -421,6 +422,7 @@ class Daysay(object):
 if __name__ == "__main__":
     from argparse import ArgumentParser
     from subprocess import Popen
+    from time import sleep
 
     parser = ArgumentParser(description="Kictor, online dictionary based on the console.")
     parser.add_argument('-b', '--baidu',  # 百度翻译
@@ -461,14 +463,19 @@ if __name__ == "__main__":
 
     options = parser.parse_args()
 
-    if options.baidu:
-        selected_api = "baidu"
-    elif options.iciba:
-        selected_api = "iciba"
-    else:
-        selected_api = "youdao"
+    def lookup_word(word, selected_api=None):
+        if selected_api is None:
+            if options.baidu:
+                selected_api = "baidu"
+            elif options.iciba:
+                selected_api = "iciba"
+            else:
+                selected_api = "youdao"
 
-    dictor = Dictor(selected_api, options.debug)
+        word = word.decode("utf-8") if sys.version_info[0] < 3 else word
+        dictor = Dictor(selected_api, options.debug)
+        dictor.query = word
+        dictor.print_trans_result(options.speech, options.resources, options.read)
 
     if options.daysay:
         ds = Daysay()
@@ -476,6 +483,30 @@ if __name__ == "__main__":
         ds.print_daysay()
     elif options.words:
         for word in options.words:
-            word = word.decode("utf-8") if sys.version_info[0] < 3 else word
-            dictor.query = word
-            dictor.print_trans_result(options.speech, options.resources, options.read)
+            lookup_word(word)
+    else:
+        if optons.selection:
+            xclip = find_executable("xclip")
+            last = check_output([xclip, '-o'], universal_newlines=True)
+            print("Waiting for selection>")
+            while True:
+                try:
+                    sleep(0.1)
+                    curr = check_output([xclip, '-o'], universal_newlines=True)
+                    if curr != last:
+                        last = curr
+                        if last.strip():
+                            lookup_word(last)
+                        print("Waiting for selection>")
+                except (KeyboardInterrupt, EOFError):
+                    break
+        else:
+            while True:
+                input = raw_input if sys.version_info[0] < 3 else input
+                try:
+                    text = input('kictor> ')
+
+                if text.strip():
+                    lookup_word(text)
+
+        print("\nBye")
