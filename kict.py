@@ -10,13 +10,16 @@
 
 from __future__ import print_function
 
+import os
 import sys
 import re
 import platform
 import hashlib
 import random
-from distutils import spawn
-from pprint import pprint
+import sqlite3
+import datetime
+from distutils.spawn import find_executable
+from subprocess import Popen, call
 
 try:
     import simplejson as json
@@ -173,7 +176,7 @@ class Dictor(object):
             self.__youdao_trans_result(speech)
 
         if not self.has_result:
-            print(Colorizing.colorize(' -- No result for this query.', 'red'))
+            print(_c(' -- No result for this query.', 'red'))
         elif resource:
             self.show_resources()
         elif read:
@@ -192,12 +195,11 @@ class Dictor(object):
 
     def read_word(self):
         """read out the word"""
-        _c = Colorizing.colorize
         sys_name = platform.system()
         if 'Darwin' == sys_name:
             call(['say', self.query])
         elif 'Linux' == sys_name:
-            if spawn.find_executable('festival'):
+            if find_executable('festival'):
                 Popen('echo ' + self.query + ' | festival --tts', shell=True)
             else:
                 print(_c(' -- Please Install festival.', 'red'))
@@ -320,20 +322,20 @@ class Dictor(object):
                 print()
 
             parts = symbols["parts"]
-            print(_c(' 词典释义:', 'cyan'))
+            print(_c('  词典释义:', 'cyan'))
             print(*[
-                '   * {0}\n       {1}'.format(
+                '     * {0}\n       {1}'.format(
                     _c(part['part'], 'yellow'),
                     '; '.join(map('{0}'.format, part['means']))
                 ) for part in symbols["parts"]], sep='\n')
 
             if "exchange" in _d:
-                print(_c('\n单词时态:', 'cyan'))
+                print(_c('\n  单词时态:', 'cyan'))
                 exchange_count = 0
                 exchange_items = _d["exchange"].iteritems if sys.version_info[0] < 3 else _d["exchange"].items
                 for t, w in exchange_items():
                     if w:
-                        print("   * {0}: {1}".format(_c(t.split('_')[1], "green"), ", ".join(w)))
+                        print("     * {0}: {1}".format(_c(t.split('_')[1], "green"), ", ".join(w)))
                         exchange_count += 1
                 if exchange_count == 0:
                     print("_c(' -- No tense for this query.', 'red')")
@@ -375,55 +377,74 @@ class Dictor(object):
 
 
 class Daysay(object):
-    def __init__(self):
-        self.ds_data = {}
-        self.debug = False
+    def __init__(self, db="daily_sentence.db"):
+        self.db = db
 
-        self.__get_ds_data()
+    def fetch_ds_data(self):
+        r = requests.get(DSAPI, timeout=5)
+        r.raise_for_status()
+        return json.loads(r.content.decode("utf-8"))
 
-    def set_debuglevel(self, level):
-        self.debug = level
+    @property
+    def sentence(self):
+        conn = sqlite3.connect(self.db)
+        cursor = conn.cursor()
+        cursor.execute("""
+            create table if not exists sentences(
+                date varchar(12) primary key,
+                content text,
+                note text,
+                translation text,
+                tts varchar(100),
+                picture varchar(100),
+                picture2 varchar(100),
+                fenxiang_img varchar(100)
+            )
+        """)
 
-    def __get_ds_data(self):
-        url = DSAPI
-        try:
-            r = requests.get(url, timeout=10)
-            if self.debug: print("Request url: ", r.url)
-        except requests.exceptions.Timeout:
-            print("Connection timeout!")
-        except requests.exceptions.ConnectionError:
-            print("Connection error!")
-        except requests.exceptions.HTTPError:
-            print("Invalid HTTP response!")
-
-        if r.status_code == requests.codes.ok:
+        today = str(datetime.date.today())
+        cursor.execute('select content, note from sentences where date="%s"' % today)
+        if not cursor.fetchone():
             try:
-                self.ds_data = r.json()
-                if self.debug: pprint(self.ds_data)
-            except Exception as e:
-                print("Error: ", e)
-        else:
-            print("Request was aborted, status code is", r.status_code)
+                ds_data = self.fetch_ds_data()
+                cursor.execute(
+                    "insert into sentences values('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % (\
+                        today,
+                        ds_data['content'],
+                        ds_data['note'],
+                        ds_data['translation'],
+                        ds_data['tts'],
+                        ds_data['picture'],
+                        ds_data['picture2'],
+                        ds_data['fenxiang_img'],
+                    )
+                )
+                conn.commit()
+            except Exception:
+                pass
 
-    def print_daysay(self):
-        ds_content = self.ds_data.get("content")
-        ds_note = self.ds_data.get("note")
+        cursor.execute('select content, note, translation from sentences order by random() limit 1')
+        sentence = cursor.fetchone()
+        conn.close()
+        return dict(zip(["content", "note", "translation"], sentence))
+
+    def print_daysay(self, historical=False, translation=False):
+        sentence = self.sentence if historical else self.fetch_ds_data()
+        ds_content = sentence.get("content")
+        ds_note = sentence.get("note")
 
         if ds_content and ds_note:
-            str_out = "\n" + ds_content + "\n" + ds_note + "\n"
+            str_out = "\n" + _c(ds_content, "yellow") + "\n" + _c(ds_note, "magenta") + "\n"
             print(str_out)
 
-    def feh_img(self):
-        pass
+        if translation is True and sentence.get("translation"):
+            print(sentence["translation"])
 
 
 # Script starts from here
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
-    from subprocess import Popen
-    from time import sleep
-
     parser = ArgumentParser(description="Kictor, online dictionary based on the console.")
     parser.add_argument('-b', '--baidu',  # 百度翻译
                         action="store_true",
@@ -437,6 +458,10 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help="Print daily sentence of iciba.")
+    parser.add_argument('-c', '--sentence',
+                        action="store_true",
+                        default=False,
+                        help="Print historical sentence of iciba.")
     parser.add_argument('-o', '--resources',  # 在线资源
                         action="store_true",
                         default=False,
@@ -463,14 +488,13 @@ if __name__ == "__main__":
 
     options = parser.parse_args()
 
-    def lookup_word(word, selected_api=None):
-        if selected_api is None:
-            if options.baidu:
-                selected_api = "baidu"
-            elif options.iciba:
-                selected_api = "iciba"
-            else:
-                selected_api = "youdao"
+    def lookup_word(word):
+        if options.baidu:
+            selected_api = "baidu"
+        elif options.iciba:
+            selected_api = "iciba"
+        else:
+            selected_api = "youdao"
 
         word = word.decode("utf-8") if sys.version_info[0] < 3 else word
         dictor = Dictor(selected_api, options.debug)
@@ -478,14 +502,16 @@ if __name__ == "__main__":
         dictor.print_trans_result(options.speech, options.resources, options.read)
 
     if options.daysay:
-        ds = Daysay()
-        ds.set_debuglevel(DEBUG)
-        ds.print_daysay()
+        Daysay().print_daysay()
+    elif options.sentence:
+        Daysay().print_daysay(historical=True)
     elif options.words:
         for word in options.words:
             lookup_word(word)
     else:
-        if optons.selection:
+        if options.selection:
+            from subprocess import check_output
+            from time import sleep
             xclip = find_executable("xclip")
             last = check_output([xclip, '-o'], universal_newlines=True)
             print("Waiting for selection>")
@@ -501,12 +527,36 @@ if __name__ == "__main__":
                 except (KeyboardInterrupt, EOFError):
                     break
         else:
+            import readline  # 增强控制台模式，使能够搜索历史查询记录
+            input = raw_input if sys.version_info[0] < 3 else input
             while True:
-                input = raw_input if sys.version_info[0] < 3 else input
                 try:
                     text = input('kictor> ')
+                    text = text.strip()
+                    if not text:
+                        continue
 
-                if text.strip():
-                    lookup_word(text)
+                    if text.startswith('!'):
+                        os.system(text[1:])
+                        continue
+
+                    if text in ("@exit", "@quit"):
+                        break
+                    elif text == "@select_youdao":
+                        options.baidu = False
+                        options.iciba = False
+                    elif text == "@select_baidu":
+                        options.baidu = True
+                        options.iciba = False
+                    elif text == "@select_iciba":
+                        options.baidu = False
+                        options.iciba = True
+                    else:
+                        lookup_word(text)
+                except KeyboardInterrupt:  # Ctrl + C
+                    print()
+                    continue
+                except EOFError:  # Ctrl + D
+                    break
 
         print("\nBye")
