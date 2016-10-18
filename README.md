@@ -63,4 +63,5 @@ Debian/Ubuntu 安装：
 
 > pip install requests
 
-[Huoty](sudohuoty@163.com)  2016-10-18
+---
+[Huoty](http://konghy.cn)  2016-10-18
