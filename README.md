@@ -14,6 +14,7 @@ Online dictionary based on the console, 基于控制台的在线词典, 兼容 P
 -b, --baidu      Select baidu api.
 -i, --iciba      Select iciba api.
 -d, --daysay     Print daily sentence of iciba.
+-c, --sentence   Print historical sentence of iciba.
 -o, --resources  Print online web resources.
 -s, --speech     Print URL to speech audio.
 -r, --read       Read out the word, use festival on Linux.
@@ -62,4 +63,4 @@ Debian/Ubuntu 安装：
 
 > pip install requests
 
-Huoty<sudohuoty@163.com>  2016-10-18
+[Huoty](sudohuoty@163.com)  2016-10-18
