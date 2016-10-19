@@ -377,8 +377,8 @@ class Dictor(object):
 
 
 class Daysay(object):
-    def __init__(self, db="daily_sentence.db"):
-        self.db = db
+    def __init__(self, db=None):
+        self.db = db if db else os.path.join(os.path.dirname(__file__), "daily_sentence.db")
 
     def fetch_ds_data(self):
         r = requests.get(DSAPI, timeout=5)
@@ -403,12 +403,12 @@ class Daysay(object):
         """)
 
         today = str(datetime.date.today())
-        cursor.execute('select content, note from sentences where date="%s"' % today)
+        cursor.execute('select content, note from sentences where date=?', (today,))
         if not cursor.fetchone():
             try:
                 ds_data = self.fetch_ds_data()
                 cursor.execute(
-                    "insert into sentences values('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')" % (\
+                    "insert into sentences values(?, ?, ?, ?, ?, ?, ?, ?)", (\
                         today,
                         ds_data['content'],
                         ds_data['note'],
