@@ -527,6 +527,8 @@ if __name__ == "__main__":
                 except (KeyboardInterrupt, EOFError):
                     break
         else:
+            Daysay().print_daysay(historical=True)
+
             import readline  # 增强控制台模式，使能够搜索历史查询记录
             input = raw_input if sys.version_info[0] < 3 else input
             while True:
