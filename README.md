@@ -14,7 +14,6 @@ Online dictionary based on the console, 基于控制台的在线词典, 兼容 P
 -b, --baidu      Select baidu api.
 -i, --iciba      Select iciba api.
 -d, --daysay     Print daily sentence of iciba.
--c, --sentence   Print historical sentence of iciba.
 -o, --resources  Print online web resources.
 -s, --speech     Print URL to speech audio.
 -r, --read       Read out the word, use festival on Linux.
@@ -36,7 +35,6 @@ Online dictionary based on the console, 基于控制台的在线词典, 兼容 P
 ## 每日一句
 
 - `kict -d` 输出爱词霸的每日一句，
-- `kict -c` 随机输出一句爱词霸历史上的每日一句
 
 ## 依赖的系统工具
 
@@ -62,6 +60,8 @@ Debian/Ubuntu 安装：
 项目依赖第三库 `requests`，可以通过 pip 安装：
 
 > pip install requests
+
+**注：** 使用需保证系统有 Python 环境，且版本大于 2.6。
 
 ---
 [Huoty](http://konghy.cn)  2016-10-18
