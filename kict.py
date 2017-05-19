@@ -16,8 +16,6 @@ import re
 import platform
 import hashlib
 import random
-import sqlite3
-import datetime
 from distutils.spawn import find_executable
 from subprocess import Popen, call
 
@@ -191,7 +189,7 @@ class Dictor(object):
             print(_c('\n  在线资源:', 'cyan'))
             print(*map(('     * ' + _c('{0}', 'underline')).format, ol_res), sep='\n')
         else:
-            print(_c(' -- No online resources for this query.', 'red'))
+            print(_c('    -- No online resources for this query.', 'red'))
 
     def read_word(self):
         """read out the word"""
@@ -338,7 +336,7 @@ class Dictor(object):
                         print("     * {0}: {1}".format(_c(t.split('_')[1], "green"), ", ".join(w)))
                         exchange_count += 1
                 if exchange_count == 0:
-                    print("_c(' -- No tense for this query.', 'red')")
+                    print(_c('    -- No tense for this query.', 'red'))
         else:
             print()
 
@@ -377,68 +375,26 @@ class Dictor(object):
 
 
 class Daysay(object):
-    def __init__(self, db=None):
-        self.db = db if db else os.path.join(os.path.dirname(__file__), "daily_sentence.db")
+
+    def __init__(self):
+        pass
 
     def fetch_ds_data(self):
         r = requests.get(DSAPI, timeout=5)
         r.raise_for_status()
         return json.loads(r.content.decode("utf-8"))
 
-    @property
-    def sentence(self):
-        conn = sqlite3.connect(self.db)
-        cursor = conn.cursor()
-        cursor.execute("""
-            create table if not exists sentences(
-                date varchar(12) primary key,
-                content text,
-                note text,
-                translation text,
-                tts varchar(100),
-                picture varchar(100),
-                picture2 varchar(100),
-                fenxiang_img varchar(100)
-            )
-        """)
-
-        today = str(datetime.date.today())
-        cursor.execute('select content, note from sentences where date=?', (today,))
-        if not cursor.fetchone():
-            try:
-                ds_data = self.fetch_ds_data()
-                cursor.execute(
-                    "insert into sentences values(?, ?, ?, ?, ?, ?, ?, ?)", (\
-                        today,
-                        ds_data['content'],
-                        ds_data['note'],
-                        ds_data['translation'],
-                        ds_data['tts'],
-                        ds_data['picture'],
-                        ds_data['picture2'],
-                        ds_data['fenxiang_img'],
-                    )
-                )
-                conn.commit()
-            except Exception:
-                pass
-
-        cursor.execute('select content, note, translation from sentences order by random() limit 1')
-        sentence = cursor.fetchone()
-        conn.close()
-        return dict(zip(["content", "note", "translation"], sentence))
-
-    def print_daysay(self, historical=False, translation=False):
-        sentence = self.sentence if historical else self.fetch_ds_data()
-        ds_content = sentence.get("content")
-        ds_note = sentence.get("note")
-
-        if ds_content and ds_note:
-            str_out = "\n" + _c(ds_content, "yellow") + "\n" + _c(ds_note, "magenta") + "\n"
+    def show(self, translation=False):
+        data = self.fetch_ds_data()
+        content = data.get("content")
+        note = data.get("note")
+        if content and note:
+            str_out = "\n" + _c(content, "yellow") + "\n" + _c(note, "magenta") + "\n"
             print(str_out)
 
-        if translation is True and sentence.get("translation"):
-            print(sentence["translation"])
+        translation = data.get("translation")
+        if translation is True and translation:
+            print(translation)
 
 
 # Script starts from here
@@ -458,10 +414,6 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help="Print daily sentence of iciba.")
-    parser.add_argument('-c', '--sentence',
-                        action="store_true",
-                        default=False,
-                        help="Print historical sentence of iciba.")
     parser.add_argument('-o', '--resources',  # 在线资源
                         action="store_true",
                         default=False,
@@ -502,9 +454,7 @@ if __name__ == "__main__":
         dictor.print_trans_result(options.speech, options.resources, options.read)
 
     if options.daysay:
-        Daysay().print_daysay()
-    elif options.sentence:
-        Daysay().print_daysay(historical=True)
+        Daysay().show()
     elif options.words:
         for word in options.words:
             lookup_word(word)
@@ -527,7 +477,7 @@ if __name__ == "__main__":
                 except (KeyboardInterrupt, EOFError):
                     break
         else:
-            Daysay().print_daysay(historical=True)
+            Daysay().show()
 
             import readline  # 增强控制台模式，使能够搜索历史查询记录
             input = raw_input if sys.version_info[0] < 3 else input
