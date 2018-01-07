@@ -154,16 +154,17 @@ class Dictor(object):
 
         try:
             r = requests.get(url, params=payload, timeout=10)
-            if self.debug: print("Request url: ", r.url)
+            if self.debug:
+                print("Request url: ", r.url)
+            r.raise_for_status()
         except requests.exceptions.Timeout:
             print("Connection timeout!")
         except requests.exceptions.ConnectionError:
             print("Connection error!")
         except requests.exceptions.HTTPError:
             print("Invalid HTTP response!")
-
-        r.raise_for_status()
-        return json.loads(r.content.decode("utf-8"))
+        else:
+            return json.loads(r.content.decode("utf-8"))
 
     def print_trans_result(self, speech=False, resource=False, read=False):
         if self.selected_api == "baidu":
@@ -206,6 +207,8 @@ class Dictor(object):
 
     def __youdao_trans_result(self, speech=False, resource=False, read=False):
         _d = self.trans_data
+        if not _d:
+            return
 
         print(_c(self.query, 'bold'), end='')
 
@@ -256,16 +259,21 @@ class Dictor(object):
                 ) for ref in _d['web']], sep='\n')
 
     def __baidu_trans_result(self):
-        if "trans_result" in self.trans_data:
+        _d = self.trans_data
+        if not _d:
+            return
+
+        if "trans_result" in _d:
             self.has_result = True
-            trans_result = self.trans_data["trans_result"][0]
+            trans_result = _d["trans_result"][0]
             print(_c(trans_result["src"], 'bold'))
             print(_c("  翻译结果:", 'cyan'))
             print(_c("     * {0}".format(trans_result["dst"]), 'magenta'))
-        pass
 
     def __iciba_trans_result(self, speech=False, resource=False, read=False):
         _d = self.trans_data
+        if not _d:
+            return
 
         print(_c(self.query, 'bold'), end='')
 
@@ -380,7 +388,7 @@ class Daysay(object):
         pass
 
     def fetch_ds_data(self):
-        r = requests.get(DSAPI, timeout=5)
+        r = requests.get(DSAPI, timeout=3)
         r.raise_for_status()
         return json.loads(r.content.decode("utf-8"))
 
@@ -454,7 +462,10 @@ if __name__ == "__main__":
         dictor.print_trans_result(options.speech, options.resources, options.read)
 
     if options.daysay:
-        Daysay().show()
+        try:
+            Daysay().show()
+        except requests.exceptions.ConnectTimeout:
+            print(_c("Connect api timeout, please retry!", "red"))
     elif options.words:
         for word in options.words:
             lookup_word(word)
@@ -477,7 +488,13 @@ if __name__ == "__main__":
                 except (KeyboardInterrupt, EOFError):
                     break
         else:
-            Daysay().show()
+            try:
+                Daysay().show()
+            except Exception:
+                if options.debug:
+                    raise
+                else:
+                    pass
 
             import readline  # 增强控制台模式，使能够搜索历史查询记录
             input = raw_input if sys.version_info[0] < 3 else input
