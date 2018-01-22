@@ -13,6 +13,7 @@ from __future__ import print_function
 import os
 import sys
 import re
+import json
 import platform
 import hashlib
 import random
@@ -20,11 +21,14 @@ from distutils.spawn import find_executable
 from subprocess import Popen, call
 
 try:
-    import simplejson as json
+    from urllib import urlencode
 except ImportError:
-    import json
+    from urllib.parse import urlencode
 
-import requests
+try:
+    from urllib2 import Request, urlopen
+except ImportError:
+    from urllib.request import Request, urlopen
 
 
 if sys.version_info[0] < 3:
@@ -90,7 +94,22 @@ class Colorizing(object):
 _c = Colorizing()
 
 
-class Dictor(object):
+class Base(object):
+
+    @staticmethod
+    def _get_request(url, params=None, timeout=10):
+        if params:
+            params = urlencode(params)
+            url = "?".join([url, params])
+        request = Request(url)
+        resp = urlopen(request, timeout=timeout)
+        body = resp.read().decode("utf-8")
+        if resp.getcode() != 200:
+            raise Exception(body)
+        return body
+
+
+class Dictor(Base):
     """词典"""
 
     def __init__(self, selected_api="youdao", debug=False):
@@ -107,7 +126,7 @@ class Dictor(object):
         url = "http://fanyi.youdao.com/openapi.do"
         payload = {
             "keyfrom": YOUDAO_KEYFROM,
-            "key":YOUDAO_API_KEY,
+            "key": YOUDAO_API_KEY,
             "type": "data",
             "doctype": "json",
             "version": "1.2",
@@ -151,20 +170,11 @@ class Dictor(object):
     def trans_data(self):
         url = self.api_info[self.selected_api]["url"]
         payload = self.api_info[self.selected_api]["payload"]
-
         try:
-            r = requests.get(url, params=payload, timeout=10)
-            if self.debug:
-                print("Request url: ", r.url)
-            r.raise_for_status()
-        except requests.exceptions.Timeout:
-            print("Connection timeout!")
-        except requests.exceptions.ConnectionError:
-            print("Connection error!")
-        except requests.exceptions.HTTPError:
-            print("Invalid HTTP response!")
-        else:
-            return json.loads(r.content.decode("utf-8"))
+            resp_body = self._get_request(url, params=payload, timeout=10)
+        except Exception as e:
+            print(e)
+        return json.loads(resp_body)
 
     def print_trans_result(self, speech=False, resource=False, read=False):
         if self.selected_api == "baidu":
@@ -367,30 +377,31 @@ class Dictor(object):
         ]
 
         common = [url.format((query.encode('utf-8'))) for url in common]
-        perf = [url.format((query.encode('utf-8'))) for lang, url in prof \
-            if lang.match(query) is not None]
+        perf = [url.format((query.encode('utf-8'))) for lang, url in prof
+                if lang.match(query) is not None]
 
         return common + perf
 
     def __is_chinese(self, s):
         """判断是否为中文.
-        如果字符串中含有一个汉子，则认为该字符串为中文"""
+
+        如果字符串中含有一个汉子，则认为该字符串为中文
+        """
         for uchar in s:
-            if uchar >= u'\u4e00' and uchar<=u'\u9fa5':
+            if uchar >= u'\u4e00' and uchar <= u'\u9fa5':
                 return True
 
         return False
 
 
-class Daysay(object):
+class Daysay(Base):
 
     def __init__(self):
         pass
 
     def fetch_ds_data(self):
-        r = requests.get(DSAPI, timeout=3)
-        r.raise_for_status()
-        return json.loads(r.content.decode("utf-8"))
+        resp_body = self._get_request(DSAPI, timeout=3)
+        return json.loads(resp_body)
 
     def show(self, translation=False):
         data = self.fetch_ds_data()
@@ -464,8 +475,8 @@ if __name__ == "__main__":
     if options.daysay:
         try:
             Daysay().show()
-        except requests.exceptions.ConnectTimeout:
-            print(_c("Connect api timeout, please retry!", "red"))
+        except Exception as e:
+            print(_c(e, "red"))
     elif options.words:
         for word in options.words:
             lookup_word(word)
