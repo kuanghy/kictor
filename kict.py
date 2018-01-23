@@ -13,12 +13,15 @@ from __future__ import print_function
 import os
 import sys
 import re
+import gc
+import cmd
 import json
-import platform
-import hashlib
 import random
-from distutils.spawn import find_executable
+import hashlib
+import platform
+from functools import partial
 from subprocess import Popen, call
+from distutils.spawn import find_executable
 
 try:
     from urllib import urlencode
@@ -94,10 +97,30 @@ class Colorizing(object):
 _c = Colorizing()
 
 
+class CachedProperty(object):
+
+    def __init__(self, func):
+        self.__name__ = func.__name__
+        self.__module__ = func.__module__
+        self.__doc__ = func.__doc__
+        self.func = func
+
+    def __get__(self, obj, cls):
+        if obj is None:
+            return self
+        value = obj.__dict__.get(self.__name__)
+        if value is None:
+            value = self.func(obj)
+            obj.__dict__[self.__name__] = value
+
+        return value
+
+
 class Base(object):
 
     @staticmethod
     def _get_request(url, params=None, timeout=10):
+        """HTTP GET Request"""
         if params:
             params = urlencode(params)
             url = "?".join([url, params])
@@ -108,9 +131,17 @@ class Base(object):
             raise Exception(body)
         return body
 
+    @staticmethod
+    def _is_chinese(text):
+        """判断是否为中文，如果字符串中含有一个汉子，则认为该字符串为中文"""
+        for uchar in text:
+            if uchar >= u'\u4e00' and uchar <= u'\u9fa5':
+                return True
+        return False
 
-class Dictor(Base):
-    """词典"""
+
+class WebDict(Base):
+    """在线网络词典"""
 
     def __init__(self, selected_api="youdao", debug=False):
         self.selected_api = selected_api
@@ -137,7 +168,7 @@ class Dictor(Base):
 
         # 百度翻译开放接口
         url = "http://api.fanyi.baidu.com/api/trans/vip/translate"
-        q_from, q_to = ("zh", "en") if self.__is_chinese(self.query) else ("en", "zh")
+        q_from, q_to = ("zh", "en") if self._is_chinese(self.query) else ("en", "zh")
         salt = random.randint(32768, 65536)
         m = hashlib.md5()
         weave = [BAIDU_APP_ID, self.query, str(salt), BAIDU_SECRET_KEY]
@@ -288,7 +319,7 @@ class Dictor(Base):
         print(_c(self.query, 'bold'), end='')
 
         symbols = _d["symbols"][0]
-        if self.__is_chinese(self.query) and "parts" in symbols:
+        if self._is_chinese(self.query) and "parts" in symbols:
             self.has_result = True
 
             if symbols.get("word_symbol"):
@@ -382,38 +413,107 @@ class Dictor(Base):
 
         return common + perf
 
-    def __is_chinese(self, s):
-        """判断是否为中文.
-
-        如果字符串中含有一个汉子，则认为该字符串为中文
-        """
-        for uchar in s:
-            if uchar >= u'\u4e00' and uchar <= u'\u9fa5':
-                return True
-
-        return False
-
 
 class Daysay(Base):
 
     def __init__(self):
         pass
 
-    def fetch_ds_data(self):
+    def _fetch_ds_data(self):
         resp_body = self._get_request(DSAPI, timeout=3)
         return json.loads(resp_body)
 
-    def show(self, translation=False):
-        data = self.fetch_ds_data()
+    def show(self, show_translation=False):
+        data = self._fetch_ds_data()
         content = data.get("content")
         note = data.get("note")
         if content and note:
-            str_out = "\n" + _c(content, "yellow") + "\n" + _c(note, "magenta") + "\n"
+            str_out = "\n{}\n{}\n".format(_c(content, "yellow"), _c(note, "magenta"))
             print(str_out)
 
         translation = data.get("translation")
-        if translation is True and translation:
-            print(translation)
+        if show_translation is True and translation:
+            print(translation, end='\n\n')
+
+
+class DictShell(Base, cmd.Cmd):
+
+    def __init__(self, prompt=None):
+        self.stdin = sys.stdin
+        self.stdout = sys.stdout
+        self.cmdqueue = []
+        self.completekey = "tab"
+
+        self.prompt = prompt or "Kictor> "
+
+        self.wdict = WebDict()
+        self._selected_dict_api = "youdao"
+
+    def cmdloop(self):
+        print("Kictor version 1.01, use Pyhton %s.%s.%s" % sys.version_info[:3])
+        print("Input '@help' to view help message")
+
+        try:
+            Daysay().show(show_translation=True)  # 显示爱词霸每日一句
+        except Exception as e:
+            print("Daysay show error: ", e)
+
+        while True:
+            try:
+                super(DictShell, self).cmdloop()
+                break
+            except KeyboardInterrupt:
+                print("^C")
+
+    def postloop(self):
+        print("\nBye")
+
+    def onecmd(self, text):
+        text = text.strip()
+        if not text:
+            return False
+
+        if text in ("@help", "@?"):
+            self.do_help()
+            return False
+
+        if text in ("@exit", "@quit", "@q", "EOF"):
+            return True
+
+        if text.startswith("!"):
+            os.system(text[1:])
+            return False
+
+        if text.startswith("@select_"):
+            self._selected_dict_api = text.split("_")[1]
+            return False
+
+        self.do_query(text)
+
+    def postcmd(self, stop, line):
+        gc.collect()
+        return stop
+
+    def completenames(self, text, *ignored):
+        pass
+
+    def do_help(self):
+        print()
+        print("Commands help message:")
+        print("=========================================================")
+        print("@help, @?             Show this help message and continue")
+        print("@select_youdao_api    Switch to the youdao API")
+        print("@select_iciba_api     Switch to the iciba API")
+        print("@select_baidu_api     Switch to the baidu API")
+        print("@exit, @quit, @q      Exit command mode")
+        print("!<system command>     Run the system command")
+        print()
+
+    def do_query(self, word, selected_api=None, speech=False, resource=False, read=False):
+        word = word.decode("utf-8") if sys.version_info[0] < 3 else word
+        self.wdict.selected_api = selected_api or self._selected_dict_api
+        self.wdict.query = word
+        self.wdict.print_trans_result(speech, resource, read)
 
 
 # Script starts from here
@@ -421,6 +521,9 @@ class Daysay(Base):
 if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser(description="Kictor, online dictionary based on the console.")
+    parser.add_argument('words',
+                        nargs='*',
+                        help="Words to lookup, or quoted sentences to translate.")
     parser.add_argument('-b', '--baidu',  # 百度翻译
                         action="store_true",
                         default=False,
@@ -453,90 +556,47 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help="Debug mode")
-    parser.add_argument('words',
-                        nargs='*',
-                        help="Words to lookup, or quoted sentences to translate.")
 
     options = parser.parse_args()
 
-    def lookup_word(word):
-        if options.baidu:
-            selected_api = "baidu"
-        elif options.iciba:
-            selected_api = "iciba"
-        else:
-            selected_api = "youdao"
-
-        word = word.decode("utf-8") if sys.version_info[0] < 3 else word
-        dictor = Dictor(selected_api, options.debug)
-        dictor.query = word
-        dictor.print_trans_result(options.speech, options.resources, options.read)
-
     if options.daysay:
         try:
-            Daysay().show()
+            Daysay().show(show_translation=True)
         except Exception as e:
             print(_c(e, "red"))
-    elif options.words:
-        for word in options.words:
-            lookup_word(word)
     else:
-        if options.selection:
-            from subprocess import check_output
-            from time import sleep
-            xclip = find_executable("xclip")
-            last = check_output([xclip, '-o'], universal_newlines=True)
-            print("Waiting for selection>")
-            while True:
-                try:
-                    sleep(0.1)
-                    curr = check_output([xclip, '-o'], universal_newlines=True)
-                    if curr != last:
-                        last = curr
-                        if last.strip():
-                            lookup_word(last)
-                        print("Waiting for selection>")
-                except (KeyboardInterrupt, EOFError):
-                    break
+        dshell = DictShell()
+
+        if options.baidu:
+            dshell._selected_dict_api = "baidu"
+        elif options.iciba:
+            dshell._selected_dict_api = "iciba"
         else:
-            try:
-                Daysay().show()
-            except Exception:
-                if options.debug:
-                    raise
-                else:
-                    pass
+            dshell._selected_dict_api = "youdao"
 
-            import readline  # 增强控制台模式，使能够搜索历史查询记录
-            input = raw_input if sys.version_info[0] < 3 else input
-            while True:
-                try:
-                    text = input('kictor> ')
-                    text = text.strip()
-                    if not text:
-                        continue
+        lookup_word = partial(dshell.do_query, speech=options.speech,
+                              resource=options.resources, read=options.read)
 
-                    if text.startswith('!'):
-                        os.system(text[1:])
-                        continue
-
-                    if text in ("@exit", "@quit"):
+        if options.words:
+            for word in options.words:
+                lookup_word(word)
+        else:
+            if options.selection:
+                from subprocess import check_output
+                from time import sleep
+                xclip = find_executable("xclip")
+                last = check_output([xclip, '-o'], universal_newlines=True)
+                print("Waiting for selection>")
+                while True:
+                    try:
+                        sleep(0.1)
+                        curr = check_output([xclip, '-o'], universal_newlines=True)
+                        if curr != last:
+                            last = curr
+                            if last.strip():
+                                lookup_word(last)
+                            print("Waiting for selection>")
+                    except (KeyboardInterrupt, EOFError):
                         break
-                    elif text == "@select_youdao":
-                        options.baidu = False
-                        options.iciba = False
-                    elif text == "@select_baidu":
-                        options.baidu = True
-                        options.iciba = False
-                    elif text == "@select_iciba":
-                        options.baidu = False
-                        options.iciba = True
-                    else:
-                        lookup_word(text)
-                except KeyboardInterrupt:  # Ctrl + C
-                    print()
-                    continue
-                except EOFError:  # Ctrl + D
-                    break
-
-        print("\nBye")
+            else:
+                dshell.cmdloop()

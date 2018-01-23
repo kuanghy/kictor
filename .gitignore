@@ -102,3 +102,6 @@ ENV/
 .AppleDB
 .AppleDesktop
 .apdisk
+
+# Editor config file
+.ftpconfig
