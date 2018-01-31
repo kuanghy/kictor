@@ -209,11 +209,11 @@ class WebDict(Base):
 
     def print_trans_result(self, speech=False, resource=False, read=False):
         if self.selected_api == "baidu":
-            self.__baidu_trans_result()
+            self._show_baidu_trans_result()
         elif self.selected_api == "iciba":
-            self.__iciba_trans_result(speech)
+            self._show_iciba_trans_result(speech)
         else:
-            self.__youdao_trans_result(speech)
+            self._show_youdao_trans_result(speech)
 
         if not self.has_result:
             print(_c(' -- No result for this query.', 'red'))
@@ -226,7 +226,7 @@ class WebDict(Base):
 
     def show_resources(self):
         """Online resources"""
-        ol_res = self.__online_resources(self.query)
+        ol_res = self._online_resources
         if len(ol_res) > 0:
             print(_c('\n  在线资源:', 'cyan'))
             print(*map(('     * ' + _c('{0}', 'underline')).format, ol_res), sep='\n')
@@ -246,7 +246,7 @@ class WebDict(Base):
         else:
             print(_c(' -- Failed to read out the word.', 'red'))
 
-    def __youdao_trans_result(self, speech=False, resource=False, read=False):
+    def _show_youdao_trans_result(self, speech=False):
         _d = self.trans_data
         if not _d:
             return
@@ -299,7 +299,7 @@ class WebDict(Base):
                     '; '.join(map(_c('{0}', 'magenta').format, ref['value']))
                 ) for ref in _d['web']], sep='\n')
 
-    def __baidu_trans_result(self):
+    def _show_baidu_trans_result(self):
         _d = self.trans_data
         if not _d:
             return
@@ -311,7 +311,7 @@ class WebDict(Base):
             print(_c("  翻译结果:", 'cyan'))
             print(_c("     * {0}".format(trans_result["dst"]), 'magenta'))
 
-    def __iciba_trans_result(self, speech=False, resource=False, read=False):
+    def _show_iciba_trans_result(self, speech=False):
         _d = self.trans_data
         if not _d:
             return
@@ -389,7 +389,8 @@ class WebDict(Base):
         else:
             print()
 
-    def __online_resources(self, query):
+    @property
+    def _online_resources(self):
         common = [
             "http://dict.cn/{0}",
             "http://www.iciba.com/{0}",
@@ -407,9 +408,9 @@ class WebDict(Base):
             (chinese, 'http://www.zdic.net/sousuo/?q={0}')
         ]
 
-        common = [url.format((query.encode('utf-8'))) for url in common]
-        perf = [url.format((query.encode('utf-8'))) for lang, url in prof
-                if lang.match(query) is not None]
+        common = [url.format((self.query.encode('utf-8'))) for url in common]
+        perf = [url.format((self.query.encode('utf-8'))) for lang, url in prof
+                if lang.match(self.query) is not None]
 
         return common + perf
 
