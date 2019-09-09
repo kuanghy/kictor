@@ -188,9 +188,9 @@ class WebDict(Base):
         # 金山词霸开放接口
         url = "http://dict-co.iciba.com/api/dictionary.php"
         payload = {
-            "w": self.query,        # 单词/汉字
-            "type": "json",    # 返回格式 为空是xml 传入 xml 或者 json
-            "key": ICIBA_KEY,  # 您申请到的key
+            "w": self.query.lower(),  # 单词/汉字
+            "type": "json",           # 返回格式 为空是xml 传入 xml 或者 json
+            "key": ICIBA_KEY,         # 您申请到的key
         }
 
         api_info["iciba"] = {"url": url, "payload": payload}
@@ -205,6 +205,7 @@ class WebDict(Base):
             resp_body = self._get_request(url, params=payload, timeout=10)
         except Exception as e:
             print(e)
+            return
         return json.loads(resp_body)
 
     def print_trans_result(self, speech=False, resource=False, read=False):
@@ -234,7 +235,7 @@ class WebDict(Base):
             print(_c('    -- No online resources for this query.', 'red'))
 
     def read_word(self):
-        """read out the word"""
+        """Read out the word"""
         sys_name = platform.system()
         if 'Darwin' == sys_name:
             call(['say', self.query])
