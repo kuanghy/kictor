@@ -203,10 +203,9 @@ class WebDict(Base):
         payload = self.api_info[self.selected_api]["payload"]
         try:
             resp_body = self._get_request(url, params=payload, timeout=10)
+            return json.loads(resp_body)
         except Exception as e:
             print(e)
-            return
-        return json.loads(resp_body)
 
     def print_trans_result(self, speech=False, resource=False, read=False):
         if self.selected_api == "baidu":
