@@ -557,8 +557,15 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help="Debug mode")
+    parser.add_argument('-t', '--text', # 去掉Ascii 颜色字符
+                        action="store_true",
+                        default=False,
+                        help="Show plain text, without ascii color chars.")
 
     options = parser.parse_args()
+
+    if options.text:
+        _c = lambda s, color='none': s
 
     if options.daysay:
         try:
