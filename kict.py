@@ -5,7 +5,7 @@
 #     Filename @  kict.py
 #       Author @  Huoty
 #  Create date @  2016-04-10 09:18:02
-#  Description @  The console of the dictionary
+#  Description @  A dictionary based on the console
 # *************************************************************
 
 from __future__ import print_function
@@ -469,27 +469,39 @@ class DictShell(Base, cmd.Cmd):
     def postloop(self):
         print("\nBye")
 
+    _api_cmd_mapping = {
+        "youdao": "youdao",
+        "y": "youdao",
+        "iciba": "iciba",
+        "i": "iciba",
+        "baidu": "baidu",
+        "b": "baidu",
+    }
+
     def onecmd(self, text):
         text = text.strip()
+        if text in ("@exit", "@quit", "@q"):
+            return True
         if not text:
             return False
 
-        if text in ("@help", "@?"):
-            self.do_help()
-            return False
-
-        if text in ("@exit", "@quit", "@q", "EOF"):
-            return True
-
         if text.startswith("!"):
             os.system(text[1:])
-            return False
-
-        if text.startswith("@select_"):
-            self._selected_dict_api = text.split("_")[1]
-            return False
-
-        self.do_query(text)
+        elif text.startswith("@"):
+            _text = text[1:].strip()
+            if _text in ("help", "?"):
+                self.do_help()
+            elif _text in self._api_cmd_mapping:
+                self._selected_dict_api = self._api_cmd_mapping[_text]
+            else:
+                args = _text.split(' ', 1)
+                if len(args) > 1 and args[0] in self._api_cmd_mapping:
+                    self.do_query(args[1], self._api_cmd_mapping[args[0]])
+                else:
+                    self.do_query(text)
+        else:
+            self.do_query(text)
+        return False
 
     def postcmd(self, stop, line):
         gc.collect()
@@ -502,12 +514,12 @@ class DictShell(Base, cmd.Cmd):
         print()
         print("Commands help message:")
         print("=========================================================")
-        print("@help, @?             Show this help message and continue")
-        print("@select_youdao_api    Switch to the youdao API")
-        print("@select_iciba_api     Switch to the iciba API")
-        print("@select_baidu_api     Switch to the baidu API")
-        print("@exit, @quit, @q      Exit command mode")
-        print("!<system command>     Run the system command")
+        print("@help, @?            Show this help message and continue")
+        print("@youdao, @y          Switch to the youdao API")
+        print("@iciba, @i           Switch to the iciba API")
+        print("@baidu, @b           Switch to the baidu API")
+        print("@exit, @quit, @q     Exit command mode")
+        print("!<system command>    Run the system command")
         print()
 
     def do_query(self, word, selected_api=None, speech=False, resource=False, read=False):
@@ -521,7 +533,7 @@ class DictShell(Base, cmd.Cmd):
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
-    parser = ArgumentParser(description="Kictor, online dictionary based on the console.")
+    parser = ArgumentParser(description="Kictor, a dictionary based on the console.")
     parser.add_argument('words',
                         nargs='*',
                         help="Words to lookup, or quoted sentences to translate.")
@@ -557,7 +569,7 @@ if __name__ == "__main__":
                         action="store_true",
                         default=False,
                         help="Debug mode")
-    parser.add_argument('-t', '--text', # 去掉Ascii 颜色字符
+    parser.add_argument('-t', '--text',  # 去掉Ascii 颜色字符
                         action="store_true",
                         default=False,
                         help="Show plain text, without ascii color chars.")

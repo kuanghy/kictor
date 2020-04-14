@@ -1,7 +1,7 @@
 Kictor
 ======
 
-Online dictionary based on the console, 基于控制台的在线词典, 兼容 Python2 和 Python3。
+A dictionary based on the console, 一个基于控制台的词典工具, 兼容 Python2 和 Python3。
 
 ## 功能简介
 
@@ -27,9 +27,9 @@ Online dictionary based on the console, 基于控制台的在线词典, 兼容 P
 
 如果不输入任何查询内容，则默认启动控制台查词模式。在控制台模式下支持执行 shell 命令，但需要加上 `!` 前缀，同时支持切换查词接口：
 
-- `@select_youdao_api` 切换到有道翻译
-- `@select_baidu_api` 切换到百度翻译
-- `@select_iciba_api` 切换到爱词
+- `@youda` 切换到有道翻译
+- `@baidu` 切换到百度翻译
+- `@iciba` 切换到爱词
 
 当输入 `@exit`、`@quit` 或者 `Ctrl+D` 时退出控制台模式，输入 `@help` 可以查看帮助。
 
