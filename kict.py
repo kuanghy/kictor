@@ -495,8 +495,12 @@ class DictShell(Base, cmd.Cmd):
                 self._selected_dict_api = self._api_cmd_mapping[_text]
             else:
                 args = _text.split(' ', 1)
-                if len(args) > 1 and args[0] in self._api_cmd_mapping:
-                    self.do_query(args[1], self._api_cmd_mapping[args[0]])
+                is_multi_args = len(args) > 1
+                if is_multi_args and args[0] in self._api_cmd_mapping:
+                    dict_api = self._api_cmd_mapping[args[0]]
+                    self.do_query(args[1].strip(), dict_api)
+                elif is_multi_args and args[0] in {'r', 'read'}:
+                    self.do_query(args[1].strip(), read=True)
                 else:
                     self.do_query(text)
         else:
@@ -518,6 +522,7 @@ class DictShell(Base, cmd.Cmd):
         print("@youdao, @y          Switch to the youdao API")
         print("@iciba, @i           Switch to the iciba API")
         print("@baidu, @b           Switch to the baidu API")
+        print("@read, @r            Read out the word")
         print("@exit, @quit, @q     Exit command mode")
         print("!<system command>    Run the system command")
         print()
