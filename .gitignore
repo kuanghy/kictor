@@ -103,5 +103,8 @@ ENV/
 .AppleDesktop
 .apdisk
 
-# Editor config file
+# Editor config files
 .ftpconfig
+
+# Config files
+config.ini
