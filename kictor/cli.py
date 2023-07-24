@@ -112,7 +112,7 @@ class DictShell(cmd.Cmd):
     def do_query(self, word, selected_api=None, read=False):
         word = word.decode("utf-8") if sys.version_info[0] < 3 else word
         if selected_api:
-            selected_api = self._api_cmd_mapping['selected_api']
+            selected_api = self._api_cmd_mapping[selected_api]
         else:
             selected_api = self._selected_dict_api
         wdict = self._dicts[selected_api]

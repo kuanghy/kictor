@@ -80,6 +80,7 @@ class YoudaoDict(BaseDict):
     def show_result(self, data):
         _d = data
         if not _d:
+            self.show_no_result()
             return
 
         error_code = _d.get('errorCode')
@@ -171,6 +172,13 @@ class BaiduDict(BaseDict):
 
     def show_result(self, data):
         if not data:
+            self.show_no_result()
+            return
+
+        error_code = data.get('error_code')
+        if error_code and error_code != '52000':
+            msg = data.get('error_msg', "ErrorCode: {}".format(error_code))
+            print(_c(msg, 'red'))
             return
 
         if "trans_result" in data:
@@ -199,6 +207,7 @@ class IcibaDict(BaseDict):
     def show_result(self, data):
         _d = data
         if not _d:
+            self.show_no_result()
             return
 
         print(_c(_d.get('word_name', ''), 'bold'), end='')
