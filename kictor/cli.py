@@ -4,6 +4,8 @@
 # Author: Huoty <sudohuoty@163.com>
 # CreateTime: 2023-07-23 10:14:32
 
+from __future__ import print_function
+
 import os
 import sys
 import gc
@@ -17,10 +19,11 @@ except ImportError:
     find_executable = lambda name: name
 
 from .config import load_config
+from .util import setdefaultencoding
 from .dict import YoudaoDict, BaiduDict, IcibaDict
 
 
-class DictShell(cmd.Cmd):
+class DictShell(cmd.Cmd, object):
 
     def __init__(self, prompt=None, dict_api="youdao"):
         self.stdin = sys.stdin
@@ -39,7 +42,7 @@ class DictShell(cmd.Cmd):
 
     def cmdloop(self):
         print("Kictor version 1.01, use Pyhton %s.%s.%s" % sys.version_info[:3])
-        print("Input '@help' to view help message")
+        print("Input '@help' to view help message", end="\n\n")
 
         while True:
             try:
@@ -147,6 +150,8 @@ def main():
                         help="Debug mode.")
 
     options = parser.parse_args()
+
+    setdefaultencoding()
 
     if options.text:
         _c = lambda s, color='none': s

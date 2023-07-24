@@ -4,6 +4,8 @@
 # Author: Huoty <sudohuoty@163.com>
 # CreateTime: 2023-07-23 10:17:09
 
+from __future__ import print_function
+
 import time
 import uuid
 import json

@@ -15,6 +15,16 @@ except ImportError:
     from urllib import urlencode
 
 
+def setdefaultencoding(encoding='utf-8'):
+    if sys.version_info[0] >= 3:
+        return
+
+    stdin, stdout, stderr = sys.stdin, sys.stdout, sys.stderr
+    reload(sys)  # noqa
+    sys.setdefaultencoding(encoding)
+    sys.stdin, sys.stdout, sys.stderr = stdin, stdout, stderr
+
+
 def iteritems(obj):
     try:
         return obj.iteritems()
