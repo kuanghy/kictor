@@ -5,6 +5,7 @@
 # CreateTime: 2023-07-23 10:15:03
 
 import sys
+import re
 import hashlib
 from json import dumps as json_dumps
 try:
@@ -38,6 +39,14 @@ def contains_chinese(text):
         if uchar >= u'\u4e00' and uchar <= u'\u9fa5':
             return True
     return False
+
+
+def split_string_ignore_quotes(string):
+    pattern = r'\s+(?=(?:[^\'"]*[\'"][^\'"]*[\'"])*[^\'"]*$)'
+    return [
+        item.replace('"', '').replace("'", "")
+        for item in re.split(pattern, string)
+    ]
 
 
 def md5sum(data, encoding='utf-8'):

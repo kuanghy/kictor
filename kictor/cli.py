@@ -19,7 +19,7 @@ except ImportError:
     find_executable = lambda name: name
 
 from .config import load_config
-from .util import setdefaultencoding
+from .util import setdefaultencoding, split_string_ignore_quotes
 from .dict import YoudaoDict, BaiduDict, IcibaDict
 
 
@@ -122,7 +122,7 @@ class DictShell(cmd.Cmd, object):
         wdict.query_and_show(word, read=read)
 
 
-def main():
+def main(args=None):
     from argparse import ArgumentParser
     parser = ArgumentParser(description="Kictor, a dictionary based on the console.")
     parser.add_argument('words',
@@ -148,8 +148,7 @@ def main():
                         action="store_true",
                         default=False,
                         help="Debug mode.")
-
-    options = parser.parse_args()
+    options = parser.parse_args(args)
 
     setdefaultencoding()
 
@@ -182,3 +181,16 @@ def main():
                     break
         else:
             dshell.cmdloop()
+
+
+def ipython_magic_function(line, cell=None):
+    if not line and not cell:
+        args = ['-h']
+    else:
+        args = split_string_ignore_quotes(line) if line else []
+        if cell:
+            args.append(cell)
+    try:
+        main(args)
+    except SystemExit:
+        pass
