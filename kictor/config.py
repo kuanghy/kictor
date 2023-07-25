@@ -5,6 +5,7 @@
 # CreateTime: 2023-07-23 10:18:52
 
 import os
+import sys
 try:
     from configparser import ConfigParser
 except ImportError:
@@ -15,7 +16,12 @@ config = ConfigParser()
 
 
 # 系统用户目录
-USER_HOME = os.getenv("HOME", "/root")
+if sys.platform in ('win32', 'cygwin'):
+    USER_HOME = os.getenv("USERPROFILE")
+    if not USER_HOME:
+        USER_HOME = os.getenv("HOME", "C:\\Users\\Administrator")
+else:
+    USER_HOME = os.getenv("HOME", os.getenv(""))
 
 
 # 获取所有可能得配置文件路径
