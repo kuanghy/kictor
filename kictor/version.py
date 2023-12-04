@@ -1,7 +1,7 @@
 # Copyright (c) Huoty, All rights reserved
 # Author: Huoty <sudohuoty@163.com>
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 from collections import namedtuple
 _VersionInfo = namedtuple("version_info", ["major", "minor", "micro"])

@@ -29,7 +29,7 @@ setup_args = dict(
 def get_version():
     version = '1.0'
     scope = {}
-    version_file = os.path.join(CURRDIR, "kictor", "__init__.py")
+    version_file = os.path.join(CURRDIR, "kictor", "version.py")
     if os.path.exists(version_file):
         with open(version_file) as fp:
             exec(fp.read(), scope)
