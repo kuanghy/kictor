@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__version__ = "2.0.0"
+from .version import __version__, version_info  # noqa
 
 
 def load_ipython_extension(ipython):

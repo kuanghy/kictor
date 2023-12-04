@@ -19,6 +19,7 @@ except ImportError:
     find_executable = lambda name: name
 
 from .config import load_config
+from .version import __version__
 from .util import setdefaultencoding, split_string_ignore_quotes
 from .dict import YoudaoDict, BaiduDict, IcibaDict
 
@@ -41,7 +42,10 @@ class DictShell(cmd.Cmd, object):
         self._selected_dict_api = dict_api
 
     def cmdloop(self):
-        print("Kictor version 1.01, use Pyhton %s.%s.%s" % sys.version_info[:3])
+        python_version = "{}.{}.{}".format(*sys.version_info[:3])
+        print("Kictor version {}, use Pyhton {}".format(
+            __version__, python_version
+        ))
         print("Input '@help' to view help message", end="\n\n")
 
         while True:
