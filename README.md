@@ -3,25 +3,24 @@ Kictor
 
 A dictionary based on the console, 一个基于控制台的词典工具, 兼容 Python2 和 Python3。
 
+目前主要接入了有道词典、百度翻译、爱词霸三个开放字典、翻译 API 接口。
+
 ## 功能简介
 
 - 支持有道词典、百度翻译、爱词霸三个 API 接口查词;
 - 支持单词发音;
-- 支持划词查询;
-- 支持输出爱词霸每日一句.
+- 支持划词查询.
+
+使用帮助：
 
 ```
--b, --baidu      Select baidu api.
--i, --iciba      Select iciba api.
--d, --daysay     Print daily sentence of iciba.
--o, --resources  Print online web resources.
--s, --speech     Print URL to speech audio.
--r, --read       Read out the word, use festival on Linux.
--x, --selection  Show explaination of current selection.
+-a {youdao,baidu,iciba}, --dict-api {youdao,baidu,iciba}
+                      Specify which dict API to use, default youdao.
+-r, --read            Read out the word, use festival on Linux.
+-x, --selection       Show explaination of current selection.
+-t, --text            Show plain text, without ascii color chars.
+--debug               Debug mode.
 ```
-
-**注：** 有道接口功能相对较全，所以默认的查词接口是有道。百度翻译结果太粗糙，爱词霸不支持句子翻译，但是单词的翻译还是很完美的。可以根据需要选择合适的接口。
-
 
 ## 控制台模式
 
@@ -34,9 +33,19 @@ A dictionary based on the console, 一个基于控制台的词典工具, 兼容 
 当输入 `@exit`、`@quit` 或者 `Ctrl+D` 时退出控制台模式，输入 `@help` 可以查看帮助。
 
 
-## 每日一句
+## 配置文件
 
-- `kict -d` 输出爱词霸的每日一句，
+配置文件主要用于配置各开放平台的 API 地址、AppKey 等。配置内容可参考 [示例配置文件](config.example.ini)。
+
+配置文件名可以 `kictor.ini` 或者 `kictor.conf`，程序会搜索下列目录下的配置文件：
+
+- /etc/
+- /usr/local/etc/
+- ~/.config/
+- ~/.local/etc/
+- ~/.kictor/
+
+此外，程序还会搜索 `~/.kictor/` 和程序运行目录下的 `config.ini` 配置文件。
 
 
 ## 依赖的系统工具
@@ -55,11 +64,7 @@ Debian/Ubuntu 安装：
 
 克隆本项目到本地，然后进入项目目录执行：
 
-> ln -s $PWD/kict.py /usr/bin/kict
-
-或者
-
-> cp $PWD/kict.py /usr/bin/kict
+> pip install .
 
 **注：** 使用需保证系统有 Python 环境，且版本大于 2.6。
 

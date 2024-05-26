@@ -11,6 +11,7 @@ import uuid
 import json
 import random
 import platform
+from importlib import import_module
 from subprocess import Popen, call
 try:
     from distutils.spawn import find_executable
@@ -79,6 +80,46 @@ class YoudaoDict(BaseDict):
         resp = request(api, data=data, method="POST")
         return json.loads(resp)
 
+    def parse_webdict_en(self, url):
+        try:
+            lxml_html = import_module("lxml.html")
+        except ImportError:
+            return {}
+        html_content = request(url)
+        doc = lxml_html.fromstring(html_content)
+        uk_phonetic_contents = doc.xpath(
+            "//div[@id='ec']//span[contains(., '英')]/text() | "
+            "//div[@id='ec']//span[contains(., '英')]/span[@class='phonetic']/text()"
+        )
+        uk_phonetic = ''.join([item.strip() for item in uk_phonetic_contents])
+        us_phonetic_contents = doc.xpath(
+            "//div[@id='ec']//span[contains(., '美')]/text() | "
+            "//div[@id='ec']//span[contains(., '美')]/span[@class='phonetic']/text()"
+        )
+        us_phonetic = ''.join([item.strip() for item in us_phonetic_contents])
+        phonetics = [item for item in [uk_phonetic, us_phonetic] if item]
+        explains = doc.xpath('//div[@id="ec"]/ul/li/text()')
+        wfs = doc.xpath('//div[@id="ec"]/div[@class="sub"]/p/text()')
+        return {
+            "phonetics": phonetics,
+            "explains": explains,
+            "wfs": wfs,
+        }
+
+    def parse_webdict_zh(self, url):
+        try:
+            lxml_html = import_module("lxml.html")
+        except ImportError:
+            return {}
+        html_content = request(url)
+        doc = lxml_html.fromstring(html_content)
+        phonetics = doc.xpath("//div[@id='ce']//span[@class='phonetic']/text()")
+        explains = doc.xpath("//div[@id='ce']/ul/a/text()")
+        return {
+            "phonetics": phonetics,
+            "explains": explains,
+        }
+
     def show_result(self, data):
         _d = data
         if not _d:
@@ -101,6 +142,15 @@ class YoudaoDict(BaseDict):
             return
 
         print(_c(_d['query'], 'bold'), end='')
+
+        if 'basic' not in _d and 'webdict' in _d and 'url' in _d['webdict']:
+            url = _d['webdict']['url']
+            if contains_chinese(_d['query']):
+                webdict = self.parse_webdict_zh(url)
+            else:
+                webdict = self.parse_webdict_en(url)
+        else:
+            webdict = {}
 
         if 'basic' in _d:
             _b = _d['basic']
@@ -145,6 +195,19 @@ class YoudaoDict(BaseDict):
                     wf_count += 1
                 if wf_count == 0:
                     print(_c('    -- No tense for this query.', 'red'))
+        elif webdict and webdict.get('explains'):
+            phonetics = webdict.get('phonetics')
+            if phonetics:
+                print(_c('\n  音标拼音:', 'cyan'))
+                print(*map("     * {0}".format, phonetics), sep='\n')
+            explains = webdict['explains']
+            if explains:
+                print(_c('\n  基本释义:', 'cyan'))
+                print(*map("     * {0}".format, explains), sep='\n')
+            wfs = webdict.get('wfs')
+            if wfs:
+                print(_c('\n  单词时态:', 'cyan'))
+                print(*map("     * {0}".format, wfs), sep='\n')
         elif 'translation' in _d:
             print(_c('\n  翻译结果:', 'cyan'))
             print(*map("     * {0}".format, _d['translation']), sep='\n')

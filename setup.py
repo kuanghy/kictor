@@ -44,6 +44,11 @@ def main():
             'kict=kictor.cli:main',
         ],
     }
+    setup_args["extras_require"] = {
+        'full': [
+            "lxml",
+        ],
+    }
     setup(**setup_args)
 
 
