@@ -141,8 +141,6 @@ class YoudaoDict(BaseDict):
             print(_c(msg, 'red'))
             return
 
-        print(_c(_d['query'], 'bold'), end='')
-
         if 'basic' not in _d and 'webdict' in _d and 'url' in _d['webdict']:
             url = _d['webdict']['url']
             if contains_chinese(_d['query']):
@@ -151,6 +149,8 @@ class YoudaoDict(BaseDict):
                 webdict = self.parse_webdict_en(url)
         else:
             webdict = {}
+
+        print(_c(_d['query'], 'bold'), end='')
 
         if 'basic' in _d:
             _b = _d['basic']
