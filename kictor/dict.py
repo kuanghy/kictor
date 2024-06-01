@@ -55,6 +55,10 @@ class BaseDict(object):
 
 class YoudaoDict(BaseDict):
 
+    @staticmethod
+    def _is_single_word(text):
+        return " " not in text and "\t" not in text and "\n" not in text
+
     def query(self, text):
         api = cfg.get('youdao', 'api')
         app_key = cfg.get('youdao', 'app_key')
@@ -78,7 +82,20 @@ class YoudaoDict(BaseDict):
             'sign': sign
         }
         resp = request(api, data=data, method="POST")
-        return json.loads(resp)
+        data = json.loads(resp)
+
+        data.pop("dict", None)
+        webdict = data.pop("webdict", {})
+        if 'basic' not in data and webdict and 'url' in webdict:
+            url = webdict['url']
+            if contains_chinese(text):
+                if self._is_single_word(text) and len(text) <= 6:
+                    data["webdict"] = self.parse_webdict_zh(url)
+            else:
+                if len(text) <= 15 or self._is_single_word(text):
+                    data["webdict"] = self.parse_webdict_en(url)
+
+        return data
 
     def parse_webdict_en(self, url):
         try:
@@ -141,15 +158,6 @@ class YoudaoDict(BaseDict):
             print(_c(msg, 'red'))
             return
 
-        if 'basic' not in _d and 'webdict' in _d and 'url' in _d['webdict']:
-            url = _d['webdict']['url']
-            if contains_chinese(_d['query']):
-                webdict = self.parse_webdict_zh(url)
-            else:
-                webdict = self.parse_webdict_en(url)
-        else:
-            webdict = {}
-
         print(_c(_d['query'], 'bold'), end='')
 
         if 'basic' in _d:
@@ -195,7 +203,8 @@ class YoudaoDict(BaseDict):
                     wf_count += 1
                 if wf_count == 0:
                     print(_c('    -- No tense for this query.', 'red'))
-        elif webdict and webdict.get('explains'):
+        elif "webdict" in _d and _d["webdict"].get('explains'):
+            webdict = _d["webdict"]
             phonetics = webdict.get('phonetics')
             if phonetics:
                 print(_c('\n  音标拼音:', 'cyan'))
