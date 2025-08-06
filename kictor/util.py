@@ -6,13 +6,16 @@
 
 import sys
 import re
+import time
+import socket
 import hashlib
 from json import dumps as json_dumps
 try:
     from urllib.request import urlopen, Request as HTTPRequest
     from urllib.parse import urlencode
+    from urllib.error import URLError, HTTPError
 except ImportError:
-    from urllib2 import urlopen, Request as HTTPRequest
+    from urllib2 import URLError, HTTPError, urlopen, Request as HTTPRequest
     from urllib import urlencode
 
 
@@ -88,12 +91,33 @@ def request(url, params=None, data=None, json=None, headers=None, method="GET",
         req = HTTPRequest(url, data=data, headers=headers, method=method)
     except TypeError:
         req = HTTPRequest(url, data=data, headers=headers)
-    resp = urlopen(req, timeout=timeout)
-    resp_body = resp.read()
-    resp_data = resp_body.decode("utf-8")
-    if resp.getcode() != 200:
-        raise Exception(resp_data)
-    return resp_data
+    resp = None
+    error = None
+    retry_count = 5
+    for idx in range(retry_count):
+        try:
+            resp = urlopen(req, timeout=timeout)
+            resp_body = resp.read()
+            resp_data = resp_body.decode("utf-8")
+
+            status_code = resp.getcode()
+            if status_code == 200:
+                return resp_data
+            elif status_code >= 500:
+                raise HTTPError(
+                    url, status_code, resp_data[:100], resp.headers, None
+                )
+            else:
+                raise Exception("HTTP {}: {}".format(
+                    status_code, resp_data[:100]
+                ))
+        except (URLError, HTTPError) as ex:
+            error = ex
+            if idx < retry_count - 1:
+                time.sleep(1)
+
+    if error:
+        raise error
 
 
 class Colorizing(object):
