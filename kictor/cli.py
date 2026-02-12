@@ -13,7 +13,7 @@ from shutil import which as find_executable
 from functools import partial
 from subprocess import check_output
 
-from .config import load_config
+from .config import load_config, get_loaded_paths
 from .version import __version__
 from .util import split_string_ignore_quotes, colorizing
 from .dict import YoudaoDict, BaiduDict, IcibaDict
@@ -153,6 +153,13 @@ def main(args=None):
 
     load_config()
 
+    if not get_loaded_paths():
+        print(colorizing(' -- Warning: no config file found.', 'yellow'))
+        print("   Please create a config file in one of these locations:")
+        print("     ~/.kictor/config.ini")
+        print("     ~/.config/kictor.ini")
+        print()
+
     dshell = DictShell(dict_api=options.dict_api)
     lookup_word = partial(dshell.do_query, read=options.read)
 
@@ -161,13 +168,23 @@ def main(args=None):
             lookup_word(word)
     else:
         if options.selection:
-            xclip = find_executable("xclip")
-            last = check_output([xclip, '-o'], universal_newlines=True)
+            if sys.platform == 'darwin':
+                clip_cmd = ['pbpaste']
+            else:
+                xclip = find_executable("xclip")
+                if not xclip:
+                    print(colorizing(
+                        ' -- xclip not found, please install xclip.',
+                        'red'
+                    ))
+                    return
+                clip_cmd = [xclip, '-o']
+            last = check_output(clip_cmd, universal_newlines=True)
             print("Waiting for selection>")
             while True:
                 try:
                     time.sleep(0.1)
-                    curr = check_output([xclip, '-o'], universal_newlines=True)
+                    curr = check_output(clip_cmd, universal_newlines=True)
                     if curr != last:
                         last = curr
                         if last.strip():

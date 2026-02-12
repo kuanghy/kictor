@@ -13,6 +13,7 @@ import platform
 from shutil import which as find_executable
 from importlib import import_module
 from subprocess import Popen, call
+from configparser import NoSectionError, NoOptionError
 
 from .config import config as cfg
 from .util import request, md5sum, sha256sum, contains_chinese
@@ -45,6 +46,10 @@ class BaseDict(object):
     def query_and_show(self, text, read=False):
         try:
             data = self.query(text)
+        except (NoSectionError, NoOptionError) as e:
+            print(_c(' -- Config error: {}. '
+                      'Please check your config file.'.format(e), 'red'))
+            return
         except Exception as e:
             print(_c(' -- Query failed: {}'.format(e), 'red'))
             return

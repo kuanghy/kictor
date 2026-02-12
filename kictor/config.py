@@ -65,3 +65,8 @@ def load_config(path=None, reset=False):
     _LOADED_CONFIG_PATHS = config.read(config_paths)
     _HAS_BEEN_LOADED = True
     return config
+
+
+def get_loaded_paths():
+    """返回已加载的配置文件路径列表"""
+    return list(_LOADED_CONFIG_PATHS)
