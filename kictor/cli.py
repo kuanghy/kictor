@@ -4,27 +4,22 @@
 # Author: Huoty <sudohuoty@163.com>
 # CreateTime: 2023-07-23 10:14:32
 
-from __future__ import print_function
-
 import os
 import sys
 import gc
 import cmd
 import time
+from shutil import which as find_executable
 from functools import partial
 from subprocess import check_output
-try:
-    from distutils.spawn import find_executable
-except ImportError:
-    find_executable = lambda name: name
 
 from .config import load_config
 from .version import __version__
-from .util import setdefaultencoding, split_string_ignore_quotes, colorizing
+from .util import split_string_ignore_quotes, colorizing
 from .dict import YoudaoDict, BaiduDict, IcibaDict
 
 
-class DictShell(cmd.Cmd, object):
+class DictShell(cmd.Cmd):
 
     def __init__(self, prompt=None, dict_api="youdao"):
         self.stdin = sys.stdin
@@ -117,7 +112,6 @@ class DictShell(cmd.Cmd, object):
         print()
 
     def do_query(self, word, selected_api=None, read=False):
-        word = word.decode("utf-8") if sys.version_info[0] < 3 else word
         if selected_api:
             selected_api = self._api_cmd_mapping[selected_api]
         else:
@@ -153,8 +147,6 @@ def main(args=None):
                         default=False,
                         help="Debug mode.")
     options = parser.parse_args(args)
-
-    setdefaultencoding()
 
     if options.text:
         colorizing.disabled = True

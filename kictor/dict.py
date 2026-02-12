@@ -4,23 +4,18 @@
 # Author: Huoty <sudohuoty@163.com>
 # CreateTime: 2023-07-23 10:17:09
 
-from __future__ import print_function
-
 import time
 import uuid
 import json
 import shlex
 import random
 import platform
+from shutil import which as find_executable
 from importlib import import_module
 from subprocess import Popen, call
-try:
-    from distutils.spawn import find_executable
-except ImportError:
-    find_executable = lambda name: name
 
 from .config import config as cfg
-from .util import iteritems, request, md5sum, sha256sum, contains_chinese
+from .util import request, md5sum, sha256sum, contains_chinese
 from .util import colorizing as _c
 
 
@@ -329,7 +324,7 @@ class IcibaDict(BaseDict):
             if "exchange" in _d:
                 print(_c('\n  单词时态:', 'cyan'))
                 exchange_count = 0
-                for wf_name, wf_value in iteritems(_d["exchange"]):
+                for wf_name, wf_value in _d["exchange"].items():
                     if not wf_value:
                         continue
                     if isinstance(wf_value, list):

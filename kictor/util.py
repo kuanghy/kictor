@@ -7,33 +7,11 @@
 import sys
 import re
 import time
-import socket
 import hashlib
 from json import dumps as json_dumps
-try:
-    from urllib.request import urlopen, Request as HTTPRequest
-    from urllib.parse import urlencode
-    from urllib.error import URLError, HTTPError
-except ImportError:
-    from urllib2 import URLError, HTTPError, urlopen, Request as HTTPRequest
-    from urllib import urlencode
-
-
-def setdefaultencoding(encoding='utf-8'):
-    if sys.version_info[0] >= 3:
-        return
-
-    stdin, stdout, stderr = sys.stdin, sys.stdout, sys.stderr
-    reload(sys)  # noqa
-    sys.setdefaultencoding(encoding)
-    sys.stdin, sys.stdout, sys.stderr = stdin, stdout, stderr
-
-
-def iteritems(obj):
-    try:
-        return obj.iteritems()
-    except AttributeError:
-        return obj.items()
+from urllib.request import urlopen, Request as HTTPRequest
+from urllib.parse import urlencode
+from urllib.error import URLError, HTTPError
 
 
 def contains_chinese(text):
@@ -111,7 +89,7 @@ def request(url, params=None, data=None, json=None, headers=None, method="GET",
                 raise Exception("HTTP {}: {}".format(
                     status_code, resp_data[:100]
                 ))
-        except (URLError, HTTPError, OSError, socket.error) as ex:
+        except (URLError, HTTPError, OSError) as ex:
             error = ex
             if idx < retry_count - 1:
                 time.sleep(1)

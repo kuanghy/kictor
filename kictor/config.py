@@ -6,10 +6,7 @@
 
 import os
 import sys
-try:
-    from configparser import ConfigParser
-except ImportError:
-    from ConfigParser import SafeConfigParser as ConfigParser
+from configparser import ConfigParser
 
 
 config = ConfigParser()

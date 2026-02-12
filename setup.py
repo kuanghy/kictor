@@ -18,10 +18,11 @@ setup_args = dict(
     url='https://github.com/kuanghy/kictor',
     zip_safe=False,
     platforms=["any"],
+    python_requires='>=3.3',
     classifiers=[
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3 :: Only',
     ],
 )
 
