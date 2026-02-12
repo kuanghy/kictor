@@ -111,7 +111,7 @@ def request(url, params=None, data=None, json=None, headers=None, method="GET",
                 raise Exception("HTTP {}: {}".format(
                     status_code, resp_data[:100]
                 ))
-        except (URLError, HTTPError) as ex:
+        except (URLError, HTTPError, OSError, socket.error) as ex:
             error = ex
             if idx < retry_count - 1:
                 time.sleep(1)
