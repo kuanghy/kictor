@@ -9,6 +9,7 @@ from __future__ import print_function
 import time
 import uuid
 import json
+import shlex
 import random
 import platform
 from importlib import import_module
@@ -28,7 +29,7 @@ class BaseDict(object):
     def query(self, text):
         raise NotImplementedError()
 
-    def show_result(sef, data):
+    def show_result(self, data):
         raise NotImplementedError()
 
     def show_no_result(self):
@@ -40,14 +41,18 @@ class BaseDict(object):
             call(['say', text])
         elif 'Linux' == sys_name:
             if find_executable('festival'):
-                Popen('echo ' + text + ' | festival --tts', shell=True)
+                Popen('echo ' + shlex.quote(text) + ' | festival --tts', shell=True)
             else:
                 print(_c(' -- Please Install festival.', 'red'))
         else:
             print(_c(' -- Failed to read out the word.', 'red'))
 
     def query_and_show(self, text, read=False):
-        data = self.query(text)
+        try:
+            data = self.query(text)
+        except Exception as e:
+            print(_c(' -- Query failed: {}'.format(e), 'red'))
+            return
         self.show_result(data)
         if read:
             self.read_word(text)
@@ -67,10 +72,10 @@ class YoudaoDict(BaseDict):
         curtime = str(int(time.time()))
         text_len = len(text)
         if text_len <= 20:
-            input = text
+            sign_text = text
         else:
-            input = text[0:10] + str(text_len) + text[-10:]
-        sign = sha256sum(app_key + input + salt + curtime + app_secret)
+            sign_text = text[0:10] + str(text_len) + text[-10:]
+        sign = sha256sum(app_key + sign_text + salt + curtime + app_secret)
         data = {
             'q': text,
             'from': 'auto',
@@ -285,6 +290,11 @@ class IcibaDict(BaseDict):
             return
 
         print(_c(_d.get('word_name', ''), 'bold'), end='')
+
+        if "symbols" not in _d or not _d["symbols"]:
+            print()
+            self.show_no_result()
+            return
 
         symbols = _d["symbols"][0]
         if "parts" in symbols:

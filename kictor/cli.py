@@ -20,7 +20,7 @@ except ImportError:
 
 from .config import load_config
 from .version import __version__
-from .util import setdefaultencoding, split_string_ignore_quotes
+from .util import setdefaultencoding, split_string_ignore_quotes, colorizing
 from .dict import YoudaoDict, BaiduDict, IcibaDict
 
 
@@ -43,7 +43,7 @@ class DictShell(cmd.Cmd, object):
 
     def cmdloop(self):
         python_version = "{}.{}.{}".format(*sys.version_info[:3])
-        print("Kictor version {}, use Pyhton {}".format(
+        print("Kictor version {}, use Python {}".format(
             __version__, python_version
         ))
         print("Input '@help' to view help message", end="\n\n")
@@ -91,7 +91,7 @@ class DictShell(cmd.Cmd, object):
                 elif is_multi_args and args[0] in {'r', 'read'}:
                     self.do_query(args[1].strip(), read=True)
                 else:
-                    self.do_query(text)
+                    self.do_query(_text)
         else:
             self.do_query(text)
         return False
@@ -144,7 +144,7 @@ def main(args=None):
                         action="store_true",
                         default=False,
                         help="Show explaination of current selection.")
-    parser.add_argument('-t', '--text',  # 去掉Ascii 颜色字符
+    parser.add_argument('-t', '--text',  # 去掉 Ascii 颜色字符
                         action="store_true",
                         default=False,
                         help="Show plain text, without ascii color chars.")
@@ -157,7 +157,7 @@ def main(args=None):
     setdefaultencoding()
 
     if options.text:
-        _c = lambda s, color='none': s
+        colorizing.disabled = True
 
     load_config()
 

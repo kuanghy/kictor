@@ -21,7 +21,7 @@ if sys.platform in ('win32', 'cygwin'):
     if not USER_HOME:
         USER_HOME = os.getenv("HOME", "C:\\Users\\Administrator")
 else:
-    USER_HOME = os.getenv("HOME", os.getenv(""))
+    USER_HOME = os.getenv("HOME", "/root")
 
 
 # 获取所有可能得配置文件路径
@@ -66,4 +66,5 @@ def load_config(path=None, reset=False):
         config_paths.append(path)
 
     _LOADED_CONFIG_PATHS = config.read(config_paths)
+    _HAS_BEEN_LOADED = True
     return config

@@ -152,13 +152,15 @@ class Colorizing(object):
         'beep': "\007",
     }
 
+    disabled = False
+
     @cached_property
     def is_tty(self):
         isatty = getattr(sys.stdout, 'isatty', None)
         return isatty and isatty()
 
     def __call__(self, s, color='none'):
-        if self.is_tty and color in self.colors:
+        if not self.disabled and self.is_tty and color in self.colors:
             return "{0}{1}{2}".format(
                 self.colors[color],
                 s,
